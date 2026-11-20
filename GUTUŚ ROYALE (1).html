@@ -1,0 +1,3065 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GUTUŚ ROYALE</title>
+  <!-- Tailwind CSS dla przejrzystego, responsywnego interfejsu -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js r128 dla sceny 3D lobby i cyberpunkowej areny -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050711;
+      color: #f8fafc;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .font-cyber {
+      font-family: 'Orbitron', 'Inter', sans-serif;
+    }
+    /* Custom scrollbar wyłącznie wewnątrz przewijanych paneli */
+    .custom-scroll {
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.55);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.45);
+      border-radius: 9999px;
+    }
+
+    /* Złoto-tęczowa animacja otwierania Mops Boxa dla Królewskiego Mopsa */
+    @keyframes royalBoxPulse {
+      0% {
+        transform: scale(0.88) rotate(-2deg);
+        box-shadow: 0 0 28px rgba(250, 204, 21, 0.55), 0 0 55px rgba(236, 72, 153, 0.35);
+      }
+      50% {
+        transform: scale(1.06) rotate(2deg);
+        box-shadow: 0 0 45px rgba(34, 211, 238, 0.75), 0 0 85px rgba(250, 204, 21, 0.75);
+      }
+      100% {
+        transform: scale(0.95) rotate(0deg);
+        box-shadow: 0 0 32px rgba(192, 132, 252, 0.65), 0 0 65px rgba(250, 204, 21, 0.5);
+      }
+    }
+    @keyframes rainbowBorderShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .royal-box-anim {
+      animation: royalBoxPulse 0.65s ease-in-out infinite;
+    }
+    .rainbow-frame {
+      background: linear-gradient(125deg, #facc15, #ec4899, #22d3ee, #a855f7, #4ade80, #facc15);
+      background-size: 300% 300%;
+      animation: rainbowBorderShift 2.2s linear infinite;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.82); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .pop-in {
+      animation: popIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    /* Przyciski akcji w stylu arcade */
+    .arcade-btn {
+      transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+    }
+    .arcade-btn:active {
+      transform: scale(0.94);
+    }
+  </style>
+</head>
+<body>
+  <!-- Główny kontener sceny 3D Three.js (wspólny dla Lobby 3D oraz Cyberpunkowej Areny 3D) -->
+  <div id="sceneContainer" class="fixed inset-0 z-0"></div>
+
+  <!-- ===================================================================== -->
+  <!-- EKRAN LOBBY 3D GUTUŚ ROYALE                                           -->
+  <!-- ===================================================================== -->
+  <div id="lobbyScreen" class="fixed inset-0 z-10 flex flex-col justify-between pointer-events-none p-2.5 sm:p-4">
+    <!-- Górny pasek surowców i tytułu -->
+    <header class="pointer-events-auto flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 backdrop-blur-md border border-cyan-500/30 rounded-2xl px-3 py-2 shadow-xl">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl rainbow-frame p-[2px] shrink-0">
+          <div class="w-full h-full rounded-[10px] bg-slate-950 flex items-center justify-center font-cyber font-black text-sm text-amber-300">
+            GR
+          </div>
+        </div>
+        <div class="min-w-0">
+          <h1 class="font-cyber font-black text-sm sm:text-lg tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-pink-400 to-amber-300 truncate">
+            GUTUŚ ROYALE
+          </h1>
+          <p class="text-[11px] text-slate-400 hidden sm:block">Cyberpunkowa Arena 3D • 10 Mopsów</p>
+        </div>
+      </div>
+
+      <!-- Liczniki zasobów gracza -->
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2.5 text-xs sm:text-sm font-bold">
+        <div class="flex items-center gap-1 bg-amber-500/15 border border-amber-400/40 text-amber-300 px-2.5 py-1 rounded-xl">
+          <span>🏆</span>
+          <span id="statTrophies">0</span>
+        </div>
+        <div class="flex items-center gap-1 bg-yellow-500/15 border border-yellow-400/40 text-yellow-200 px-2.5 py-1 rounded-xl">
+          <span>🪙</span>
+          <span id="statCoins">120</span>
+        </div>
+        <div class="flex items-center gap-1 bg-fuchsia-500/15 border border-fuchsia-400/40 text-fuchsia-200 px-2.5 py-1 rounded-xl">
+          <span>🧪</span>
+          <span id="statElixirs">30</span>
+        </div>
+        <div class="flex items-center gap-1 bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 px-2.5 py-1 rounded-xl">
+          <span>🔥</span>
+          <span id="statStreak">0</span>
+        </div>
+        <div class="flex items-center gap-1 bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 px-2.5 py-1 rounded-xl">
+          <span>🎟️</span>
+          <span>Poz. <span id="statPassLevel">1</span></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Środkowa strefa Lobby: po lewej podpowiedź obrotu 360°, po prawej przycisk GRAJ -->
+    <div class="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-2 my-auto">
+      <div class="pointer-events-auto bg-slate-950/70 backdrop-blur-md border border-white/10 rounded-2xl px-3 py-2 text-xs text-slate-200 flex items-center gap-2">
+        <span class="text-cyan-300 font-bold">↻ 360°</span>
+        <span id="lobbyEquippedLabel" class="font-semibold text-white truncate max-w-[220px] sm:max-w-[280px]">Gutuś</span>
+      </div>
+
+      <button
+        id="playBtn"
+        type="button"
+        onclick="startMatchCountdown()"
+        class="pointer-events-auto arcade-btn font-cyber font-black text-base sm:text-xl tracking-wider px-8 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-amber-400 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.5)] hover:brightness-110"
+      >
+        GRAJ
+      </button>
+    </div>
+
+    <!-- Dolny panel zakładek progresji Lobby -->
+    <section class="pointer-events-auto bg-slate-950/88 backdrop-blur-lg border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col max-h-[46vh] sm:max-h-[48vh]">
+      <!-- Nawigacja zakładek -->
+      <div id="lobbyTabsBar" class="flex items-center gap-1.5 p-2 border-b border-slate-800 overflow-x-auto custom-scroll shrink-0">
+        <button data-tab="collection" onclick="setLobbyTab('collection')" class="lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition">
+          KOLEKCJA MOPS
+        </button>
+        <button data-tab="arsenal" onclick="setLobbyTab('arsenal')" class="lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition">
+          ARSENAŁ
+        </button>
+        <button data-tab="shop" onclick="setLobbyTab('shop')" class="lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition">
+          SKLEP I MOPS BOXY
+        </button>
+        <button data-tab="pass" onclick="setLobbyTab('pass')" class="lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition">
+          MOPS PASS
+        </button>
+        <button data-tab="missions" onclick="setLobbyTab('missions')" class="lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition">
+          MISJE
+        </button>
+        <button data-tab="trophies" onclick="setLobbyTab('trophies')" class="lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition">
+          DROGA PUCHARÓW
+        </button>
+      </div>
+
+      <!-- Dynamiczna zawartość aktywnej zakładki -->
+      <div id="lobbyTabContent" class="p-3 overflow-y-auto custom-scroll flex-1"></div>
+    </section>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- ODLICZANIE PRZED MECZEM: 3, 2, 1, START!                              -->
+  <!-- ===================================================================== -->
+  <div id="countdownOverlay" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-slate-950/45 backdrop-blur-[2px] pointer-events-none">
+    <div id="countdownText" class="font-cyber font-black text-6xl sm:text-8xl text-transparent bg-clip-text bg-gradient-to-b from-cyan-200 via-fuchsia-400 to-amber-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.85)] pop-in">
+      3
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- HUD MECZOWY I STEROWANIE (DOTYK + KLAWIATURA/MYSZ)                    -->
+  <!-- ===================================================================== -->
+  <div id="hudScreen" class="hidden fixed inset-0 z-20 pointer-events-none">
+    <!-- Celownik na środku ekranu (ręczne celowanie bez aimbota) -->
+    <div id="crosshair" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-75">
+      <div class="relative w-8 h-8 flex items-center justify-center">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_#22d3ee]"></span>
+        <span class="absolute top-0 w-0.5 h-2 bg-cyan-300/90"></span>
+        <span class="absolute bottom-0 w-0.5 h-2 bg-cyan-300/90"></span>
+        <span class="absolute left-0 h-0.5 w-2 bg-cyan-300/90"></span>
+        <span class="absolute right-0 h-0.5 w-2 bg-cyan-300/90"></span>
+      </div>
+    </div>
+
+    <!-- Górny HUD: HP, Sprint, Zegar, Eliminacje, Miejsce 1-10, Mini-tabela TOP -->
+    <div class="p-2.5 sm:p-4 flex items-start justify-between gap-2">
+      <!-- Lewa strona HUD: Zdrowie, Sprint, Ochrona / Odrodzenie -->
+      <div class="pointer-events-auto bg-slate-950/75 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 sm:p-3 w-48 sm:w-64 space-y-2">
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold mb-1">
+            <span class="text-rose-300">ZDROWIE</span>
+            <span id="hudHpText" class="text-white">200 / 200</span>
+          </div>
+          <div class="w-full h-3 rounded-full bg-slate-800 overflow-hidden border border-white/10">
+            <div id="hudHpBar" class="h-full bg-gradient-to-r from-rose-500 via-pink-500 to-emerald-400 transition-all duration-100" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between text-[11px] font-bold mb-1">
+            <span class="text-cyan-300">SPRINT</span>
+            <span id="hudSprintText" class="text-cyan-200">100%</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-white/10">
+            <div id="hudSprintBar" class="h-full bg-gradient-to-r from-cyan-400 to-sky-300 transition-all duration-75" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <div id="hudShieldBadge" class="hidden text-[11px] font-extrabold px-2.5 py-1 rounded-xl bg-cyan-500/20 border border-cyan-400/60 text-cyan-200 text-center">
+          TARCZA OCHRONNA: <span id="hudShieldTimer">3.0</span>s
+        </div>
+        <div id="hudRespawnBadge" class="hidden text-[11px] font-extrabold px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-400/60 text-amber-200 text-center">
+          ODRODZENIE ZA: <span id="hudRespawnTimer">2.0</span>s
+        </div>
+      </div>
+
+      <!-- Środek HUD: Zegar meczu, Miejsce 1-10, Eliminacje -->
+      <div class="flex flex-col items-center gap-1.5">
+        <div class="bg-slate-950/80 backdrop-blur-md border border-cyan-400/40 rounded-2xl px-4 py-1.5 text-center shadow-lg">
+          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">CZAS MECZU</div>
+          <div id="hudTimer" class="font-cyber font-black text-base sm:text-xl text-cyan-300">03:00</div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="bg-slate-950/80 backdrop-blur-md border border-amber-400/40 rounded-xl px-3 py-1 text-xs font-extrabold text-amber-300">
+            MIEJSCE: <span id="hudRank">1</span>/10
+          </div>
+          <div class="bg-slate-950/80 backdrop-blur-md border border-fuchsia-400/40 rounded-xl px-3 py-1 text-xs font-extrabold text-fuchsia-300">
+            ELIMINACJE: <span id="hudKills">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prawa strona HUD: Mini-tabela najlepszych graczy + przycisk wyjścia -->
+      <div class="pointer-events-auto flex flex-col items-end gap-1.5">
+        <button
+          type="button"
+          onclick="abortMatchToLobby()"
+          class="bg-slate-950/75 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-400/60 text-slate-200 hover:text-rose-200 rounded-xl px-2.5 py-1 text-[11px] font-bold transition"
+        >
+          LOBBY
+        </button>
+
+        <div class="bg-slate-950/75 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2 w-40 sm:w-52 hidden sm:block">
+          <div class="text-[10px] font-cyber font-bold text-amber-300 mb-1 uppercase">TOP MOPSÓW</div>
+          <div id="hudLeaderboard" class="space-y-1 text-[11px]"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wirtualny joystick po lewej stronie (ekran dotykowy) -->
+    <div id="joystickZone" class="pointer-events-auto fixed left-4 bottom-5 sm:left-7 sm:bottom-7 w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-slate-950/55 border-2 border-cyan-400/40 backdrop-blur-sm flex items-center justify-center">
+      <div id="joystickThumb" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-cyan-300 to-fuchsia-500 shadow-[0_0_16px_rgba(34,211,238,0.75)] border border-white/60 transition-transform duration-75"></div>
+    </div>
+
+    <!-- Prawa strefa dotykowa do obracania kamery (w środku/prawej części ekranu) -->
+    <div id="cameraTouchZone" class="pointer-events-auto fixed left-36 right-4 top-24 bottom-36 sm:left-48 sm:right-56"></div>
+
+    <!-- Przyciski STRZAŁ, SKOK i SPRINT po prawej stronie -->
+    <div class="pointer-events-auto fixed right-4 bottom-5 sm:right-7 sm:bottom-7 flex flex-col items-end gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <button
+          id="btnSprint"
+          type="button"
+          class="arcade-btn w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-cyan-500/85 active:bg-cyan-400 border-2 border-cyan-200 text-slate-950 font-cyber font-black text-[11px] shadow-lg flex items-center justify-center"
+        >
+          SPRINT
+        </button>
+        <button
+          id="btnJump"
+          type="button"
+          class="arcade-btn w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-fuchsia-500/85 active:bg-fuchsia-400 border-2 border-fuchsia-200 text-white font-cyber font-black text-[11px] shadow-lg flex items-center justify-center"
+        >
+          SKOK
+        </button>
+      </div>
+      <button
+        id="btnShoot"
+        type="button"
+        class="arcade-btn w-24 h-20 sm:w-28 sm:h-22 rounded-3xl bg-gradient-to-br from-rose-500 via-orange-500 to-amber-400 active:brightness-125 border-2 border-amber-200 text-slate-950 font-cyber font-black text-xs sm:text-sm shadow-[0_0_24px_rgba(244,63,94,0.65)] flex items-center justify-center"
+      >
+        STRZAŁ
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL OTWIERANIA MOPS BOXA (W TYM ZŁOTO-TĘCZOWA ANIMACJA KRÓLEWSKIEGO) -->
+  <!-- ===================================================================== -->
+  <div id="boxModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+    <div id="boxModalCard" class="w-full max-w-md rounded-3xl p-1 rainbow-frame shadow-2xl pop-in">
+      <div id="boxModalInner" class="bg-slate-950 rounded-[22px] p-5 text-center space-y-4">
+        <div id="boxAnimBadge" class="inline-block text-xs font-cyber font-black px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-300/40">
+          OTWIERANIE MOPS BOXA
+        </div>
+        <div id="boxVisualIcon" class="mx-auto w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-300 via-pink-500 to-cyan-400 flex items-center justify-center text-5xl shadow-xl">
+          📦
+        </div>
+        <div>
+          <h3 id="boxRewardTitle" class="font-cyber font-black text-lg sm:text-xl text-white">Losowanie...</h3>
+          <p id="boxRewardSubtitle" class="text-xs sm:text-sm text-slate-300 mt-1">Przygotuj się na nagrodę!</p>
+        </div>
+        <button
+          id="boxCloseBtn"
+          type="button"
+          onclick="closeBoxModal()"
+          class="hidden w-full py-2.5 rounded-2xl font-cyber font-bold text-sm bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 hover:brightness-110 transition"
+        >
+          ODBIERZ I ZAMKNIJ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TABELA WYNIKÓW MIEJSC 1-10 PO ZAKOŃCZENIU 3-MINUTOWEGO MECZU          -->
+  <!-- ===================================================================== -->
+  <div id="resultsModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-950/88 backdrop-blur-md p-3 sm:p-5">
+    <div class="bg-slate-900 border border-cyan-500/40 rounded-3xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl pop-in">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 class="font-cyber font-black text-lg sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-amber-300">
+            KONIEC MECZU — WYNIKI 1–10
+          </h2>
+          <p id="resultsRewardSummary" class="text-xs text-slate-300 mt-0.5"></p>
+        </div>
+        <div id="resultsPlayerPlaceBadge" class="font-cyber font-black text-sm sm:text-base px-3 py-1.5 rounded-2xl bg-amber-400/20 border border-amber-300/50 text-amber-300">
+          #1
+        </div>
+      </div>
+
+      <div id="resultsStandingsList" class="p-3 sm:p-4 overflow-y-auto custom-scroll space-y-2 flex-1"></div>
+
+      <div class="p-3 sm:p-4 border-t border-slate-800 flex flex-wrap gap-2.5 justify-end">
+        <button
+          type="button"
+          onclick="returnToLobbyFromResults()"
+          class="px-5 py-2.5 rounded-2xl font-cyber font-bold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 transition"
+        >
+          WRÓĆ DO LOBBY
+        </button>
+        <button
+          type="button"
+          onclick="playAgainFromResults()"
+          class="px-6 py-2.5 rounded-2xl font-cyber font-black text-xs sm:text-sm bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-amber-400 text-slate-950 hover:brightness-110 transition"
+        >
+          ZAGRAJ PONOWNIE
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subtelny komunikat powiadomień (zamiast alert()) -->
+  <div id="toastBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-2 rounded-2xl bg-slate-900/95 border border-cyan-400/60 text-cyan-200 text-xs sm:text-sm font-bold shadow-2xl text-center max-w-[90vw]"></div>
+
+  <script>
+    // =========================================================================
+    // 1. DANE RZADKOŚCI, CENY (EPICKA << MITYCZNA), SKINY MOPSÓW, BRONIE I PASS
+    // =========================================================================
+    const STORAGE_KEY = 'GUTUS_ROYALE_SAVE_V1';
+
+    // 8 rzadkości skinów mopsów (każda z pierwszych 7 ma >= 10 skinów, Królewski ma dokładnie 3 skiny)
+    const MOPS_RARITIES = [
+      { id: 'zwykly',     label: 'Zwykły',     skinPrice: 20,  weaponPrice: 25,  weaponSkinPrice: 15,  badge: 'bg-slate-700 text-slate-100 border-slate-400' },
+      { id: 'rzadki',     label: 'Rzadki',     skinPrice: 45,  weaponPrice: 55,  weaponSkinPrice: 35,  badge: 'bg-sky-800/90 text-sky-100 border-sky-400' },
+      { id: 'epicki',     label: 'Epicki',     skinPrice: 85,  weaponPrice: 95,  weaponSkinPrice: 65,  badge: 'bg-purple-800/90 text-purple-100 border-purple-400' },
+      { id: 'legendarny', label: 'Legendarny', skinPrice: 150, weaponPrice: 170, weaponSkinPrice: 120, badge: 'bg-amber-700/90 text-amber-100 border-amber-300' },
+      { id: 'specjalny',  label: 'Specjalny',  skinPrice: 195, weaponPrice: 215, weaponSkinPrice: 155, badge: 'bg-orange-800/90 text-orange-100 border-orange-400' },
+      { id: 'mityczny',   label: 'Mityczny',   skinPrice: 265, weaponPrice: 295, weaponSkinPrice: 215, badge: 'bg-pink-800/90 text-pink-100 border-pink-400' },
+      { id: 'karnetowy',  label: 'Karnetowy',  skinPrice: 0,   weaponPrice: 0,   weaponSkinPrice: 0,   badge: 'bg-teal-800/90 text-teal-100 border-teal-400' },
+      { id: 'krolewski',  label: 'Królewski',  skinPrice: 0,   weaponPrice: 0,   weaponSkinPrice: 0,   badge: 'bg-gradient-to-r from-amber-300 via-pink-400 to-cyan-300 text-slate-950 font-black border-white' }
+    ];
+
+    function getMopsRarity(id) {
+      return MOPS_RARITIES.find(r => r.id === id) || MOPS_RARITIES[0];
+    }
+
+    // Zwraca cenę skina mopsa; Epicka (85) jest wyraźnie tańsza od Mitycznej (265)
+    function getMopsSkinPrice(skin) {
+      if (!skin || skin.rarity === 'karnetowy' || skin.rarity === 'krolewski') return 0;
+      const r = getMopsRarity(skin.rarity);
+      return r.skinPrice;
+    }
+
+    // Generowanie zestawu skinów mopsów (po min. 10 na zwykłe/rzadkie/epickie/legendarne/specjalne/mityczne/karnetowe oraz 3 królewskie)
+    const SKINS_DATA = (() => {
+      const list = [
+        // Domyślny skin gracza: Gutuś w czarnej koszulce z tęczowym G i napisem "gutuś"
+        {
+          id: 'skin_gutus_default',
+          name: 'Gutuś',
+          rarity: 'zwykly',
+          bodyColor: '#d6bfa3',
+          earColor: '#2a211b',
+          shirtColor: '#111318',
+          isGutusShirt: true,
+          desc: 'Czarna koszulka z tęczowym G i napisem gutuś.'
+        }
+      ];
+
+      const makeBatch = (rarity, count, prefix, palette, shirtPalette) => {
+        for (let i = 1; i <= count; i++) {
+          const id = `${prefix}_${i}`;
+          if (list.some(item => item.id === id)) continue;
+          const p = palette[(i - 1) % palette.length];
+          const sColor = shirtPalette[(i - 1) % shirtPalette.length];
+          list.push({
+            id,
+            name: `${p.name} #${i}`,
+            rarity,
+            bodyColor: p.body,
+            earColor: p.ear,
+            shirtColor: sColor,
+            isGutusShirt: false,
+            desc: `Mops z cyberpunkowej dzielnicy (${getMopsRarity(rarity).label}).`
+          });
+        }
+      };
+
+      makeBatch('zwykly', 10, 'skin_zw', [
+        { name: 'Piaskowy Mops', body: '#d8be9c', ear: '#33261d' },
+        { name: 'Szary Mops', body: '#9ca3af', ear: '#1f2937' },
+        { name: 'Kremowy Mops', body: '#e5d3b3', ear: '#452c1e' },
+        { name: 'Miedziany Mops', body: '#c68b59', ear: '#2b1910' }
+      ], ['#1e293b', '#0f172a', '#312e81', '#1e3a8a']);
+
+      makeBatch('rzadki', 10, 'skin_rz', [
+        { name: 'Neonowy Błękit', body: '#cbd5e1', ear: '#0284c7' },
+        { name: 'Turkusowy Patrol', body: '#d1d5db', ear: '#0d9488' },
+        { name: 'Chłodny Stalowy', body: '#94a3b8', ear: '#0369a1' }
+      ], ['#0891b2', '#0284c7', '#1d4ed8']);
+
+      makeBatch('epicki', 10, 'skin_ep', [
+        { name: 'Fioletowy Haker', body: '#e2e8f0', ear: '#7e22ce' },
+        { name: 'Cybernetyczny Fiolet', body: '#cbd5e1', ear: '#9333ea' },
+        { name: 'Karmazynowy Impuls', body: '#e5e7eb', ear: '#be185d' }
+      ], ['#6b21a8', '#7e22ce', '#9d174d']);
+
+      makeBatch('legendarny', 10, 'skin_le', [
+        { name: 'Złoty Feniks', body: '#fde68a', ear: '#b45309' },
+        { name: 'Bursztynowy Wódz', body: '#fcd34d', ear: '#92400e' },
+        { name: 'Słoneczny Mops', body: '#fef08a', ear: '#d97706' }
+      ], ['#b45309', '#92400e', '#78350f']);
+
+      makeBatch('specjalny', 10, 'skin_sp', [
+        { name: 'Ognisty Kurier', body: '#fed7aa', ear: '#ea580c' },
+        { name: 'Plazmowy Kaskader', body: '#e2e8f0', ear: '#f97316' },
+        { name: 'Wulkaniczny Mops', body: '#d6d3d1', ear: '#c2410c' }
+      ], ['#c2410c', '#9a3412', '#7c2d12']);
+
+      makeBatch('mityczny', 10, 'skin_mi', [
+        { name: 'Mityczny Neon', body: '#fbcfe8', ear: '#db2777' },
+        { name: 'Gwiezdny Mops', body: '#e9d5ff', ear: '#c026d3' },
+        { name: 'Kwantowy Mops', body: '#cffafe', ear: '#06b6d4' }
+      ], ['#831843', '#701a75', '#164e63']);
+
+      // 10 skinów o rzadkości Karnetowy — dostępne wyłącznie w MOPS PASS
+      makeBatch('karnetowy', 10, 'skin_ka', [
+        { name: 'Karnetowy Mistrz', body: '#99f6e4', ear: '#0f766e' },
+        { name: 'Przepustka Cyber', body: '#a5f3fc', ear: '#0e7490' },
+        { name: 'Sezonowy Mops', body: '#bbf7d0', ear: '#15803d' }
+      ], ['#115e59', '#155e75', '#166534']);
+
+      // Dokładnie 3 skiny o rzadkości Królewski
+      const royals = [
+        { id: 'skin_kr_1', name: 'Imperator Gutuś I', bodyColor: '#fef08a', earColor: '#eab308', shirtColor: '#311042', desc: 'Królewski mops w złotej koronie i purpurowej pelerynie.' },
+        { id: 'skin_kr_2', name: 'Tęczowy Monarcha', bodyColor: '#fdf4ff', earColor: '#ec4899', shirtColor: '#0f172a', desc: 'Królewski mops z tęczowym blaskiem areny.' },
+        { id: 'skin_kr_3', name: 'Suweren Neo-Miasta', bodyColor: '#ecfeff', earColor: '#06b6d4', shirtColor: '#1e1b4b', desc: 'Najwyższy tytuł królewski w GUTUŚ ROYALE.' }
+      ];
+      royals.forEach(r => list.push({ ...r, rarity: 'krolewski', isGutusShirt: false }));
+
+      return list;
+    })();
+
+    // 9 rzadkości broni w Arsenale (z wyraźnie niższą ceną Epickiej niż Mitycznej)
+    const WEAPON_RARITIES_ORDER = [
+      'Zwykły',
+      'Rzadki',
+      'Epicki',
+      'Legendarny',
+      'Specjalny',
+      'Mityczny',
+      'Karnetowy',
+      'Ultraciekawy',
+      'Królewski'
+    ];
+
+    function getWeaponBaseCost(rarityName) {
+      switch (rarityName) {
+        case 'Zwykły':       return 25;
+        case 'Rzadki':       return 55;
+        case 'Epicki':       return 95;
+        case 'Legendarny':   return 170;
+        case 'Specjalny':    return 215;
+        case 'Mityczny':     return 295;
+        case 'Ultraciekawy': return 340;
+        case 'Karnetowy':    return 0; // Wyłącznie w MOPS PASS
+        case 'Królewski':    return 0; // Droga Pucharów / Boxy
+        default:             return 50;
+      }
+    }
+
+    function getWeaponSkinCost(rarityName) {
+      switch (rarityName) {
+        case 'Zwykły':       return 15;
+        case 'Rzadki':       return 35;
+        case 'Epicki':       return 65;
+        case 'Legendarny':   return 120;
+        case 'Specjalny':    return 155;
+        case 'Mityczny':     return 215;
+        case 'Ultraciekawy': return 250;
+        case 'Karnetowy':    return 0; // Wyłącznie w MOPS PASS
+        case 'Królewski':    return 0;
+        default:             return 30;
+      }
+    }
+
+    // 9 broni (po jednej na każdą z 9 rzadkości) ze skinami broni
+    const WEAPONS_DATA = [
+      {
+        id: 'wpn_zwykly',
+        name: 'Miastowy Blaster',
+        rarity: 'Zwykły',
+        baseDmg: 22,
+        fireInterval: 0.24,
+        color: '#38bdf8',
+        skins: [
+          { id: 'ws_zw_1', name: 'Grafit', color: '#64748b', passOnly: false },
+          { id: 'ws_zw_2', name: 'Limonka', color: '#84cc16', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_rzadki',
+        name: 'Impulsowy Miotacz',
+        rarity: 'Rzadki',
+        baseDmg: 26,
+        fireInterval: 0.21,
+        color: '#22d3ee',
+        skins: [
+          { id: 'ws_rz_1', name: 'Lodowy', color: '#0ea5e9', passOnly: false },
+          { id: 'ws_rz_2', name: 'Morski', color: '#14b8a6', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_epicki',
+        name: 'Fioletowy Rozpruwacz',
+        rarity: 'Epicki',
+        baseDmg: 31,
+        fireInterval: 0.19,
+        color: '#c084fc',
+        skins: [
+          { id: 'ws_ep_1', name: 'Ametyst', color: '#a855f7', passOnly: false },
+          { id: 'ws_ep_2', name: 'Orchidea', color: '#d946ef', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_legendarny',
+        name: 'Złoty Karabin Mopsa',
+        rarity: 'Legendarny',
+        baseDmg: 36,
+        fireInterval: 0.17,
+        color: '#facc15',
+        skins: [
+          { id: 'ws_le_1', name: '24K Złoto', color: '#eab308', passOnly: false },
+          { id: 'ws_le_2', name: 'Bursztyn', color: '#f59e0b', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_specjalny',
+        name: 'Plazmowy Kijek',
+        rarity: 'Specjalny',
+        baseDmg: 40,
+        fireInterval: 0.16,
+        color: '#fb923c',
+        skins: [
+          { id: 'ws_sp_1', name: 'Magma', color: '#ea580c', passOnly: false },
+          { id: 'ws_sp_2', name: 'Iskra', color: '#f97316', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_mityczny',
+        name: 'Mityczny Wyrzutnik',
+        rarity: 'Mityczny',
+        baseDmg: 45,
+        fireInterval: 0.15,
+        color: '#f472b6',
+        skins: [
+          { id: 'ws_mi_1', name: 'Neon Róż', color: '#ec4899', passOnly: false },
+          { id: 'ws_mi_2', name: 'Kosmos', color: '#e879f9', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_karnetowy',
+        name: 'Karnetowy Laser-Pug',
+        rarity: 'Karnetowy',
+        baseDmg: 38,
+        fireInterval: 0.16,
+        color: '#2dd4bf',
+        passOnly: true,
+        skins: [
+          { id: 'ws_ka_1', name: 'Turkus Pass', color: '#0d9488', passOnly: true },
+          { id: 'ws_ka_2', name: 'Mięta Karnetu', color: '#10b981', passOnly: true }
+        ]
+      },
+      {
+        id: 'wpn_ultraciekawy',
+        name: 'Ultraciekawy Działko',
+        rarity: 'Ultraciekawy',
+        baseDmg: 49,
+        fireInterval: 0.14,
+        color: '#a3e635',
+        skins: [
+          { id: 'ws_ul_1', name: 'Kwasowy Neo', color: '#84cc16', passOnly: false },
+          { id: 'ws_ul_2', name: 'Cyber-Limonka', color: '#4ade80', passOnly: false }
+        ]
+      },
+      {
+        id: 'wpn_krolewski',
+        name: 'Królewskie Berło Błysku',
+        rarity: 'Królewski',
+        baseDmg: 54,
+        fireInterval: 0.13,
+        color: '#fde047',
+        skins: [
+          { id: 'ws_kr_1', name: 'Tęczowy Tron', color: '#facc15', passOnly: false }
+        ]
+      }
+    ];
+
+    function isPassOnlyItem(rarityOrFlag) {
+      return rarityOrFlag === 'Karnetowy' || rarityOrFlag === 'karnetowy' || rarityOrFlag === true;
+    }
+
+    // 10 poziomów MOPS PASS: ścieżka darmowa oraz płatna (za 250 MopsCoinów).
+    // Wszystkie przedmioty o rzadkości Karnetowy są wyłącznie tutaj!
+    const PASS_LEVELS = Array.from({ length: 10 }, (_, idx) => {
+      const level = idx + 1;
+      const freeSkin = SKINS_DATA.find(s => s.id === `skin_ka_${level}`) || SKINS_DATA.find(s => s.rarity === 'karnetowy');
+      const paidOptions = [
+        { type: 'weapon', id: 'wpn_karnetowy', label: 'Broń: Karnetowy Laser-Pug (Karnetowy)' },
+        { type: 'weapon_skin', weaponId: 'wpn_karnetowy', skinId: 'ws_ka_1', label: 'Skin broni: Turkus Pass (Karnetowy)' },
+        { type: 'weapon_skin', weaponId: 'wpn_karnetowy', skinId: 'ws_ka_2', label: 'Skin broni: Mięta Karnetu (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_1', label: 'Skin mopsa: Karnetowy Mistrz #1 (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_3', label: 'Skin mopsa: Przepustka Cyber #3 (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_5', label: 'Skin mopsa: Sezonowy Mops #5 (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_7', label: 'Skin mopsa: Karnetowy Mistrz #7 (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_8', label: 'Skin mopsa: Przepustka Cyber #8 (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_9', label: 'Skin mopsa: Sezonowy Mops #9 (Karnetowy)' },
+        { type: 'skin', id: 'skin_ka_10', label: 'Skin mopsa: Karnetowy Mistrz #10 (Karnetowy)' }
+      ];
+      return {
+        level,
+        pointsRequired: level * 50,
+        freeReward: { type: 'skin', id: freeSkin.id, label: `Skin: ${freeSkin.name} (Karnetowy)` },
+        paidReward: paidOptions[idx]
+      };
+    });
+
+    // Misje dzienne i sezonowe dające punkty do MOPS PASS
+    const MISSIONS_TEMPLATE = [
+      { id: 'm_d_1', category: 'Dzienna', title: 'Wyeliminuj 3 przeciwników w meczach', target: 3, points: 45, statKey: 'kills' },
+      { id: 'm_d_2', category: 'Dzienna', title: 'Ukończ 1 pełny mecz w arenie', target: 1, points: 40, statKey: 'matches' },
+      { id: 'm_d_3', category: 'Dzienna', title: 'Zajmij miejsce w TOP 3', target: 1, points: 55, statKey: 'top3' },
+      { id: 'm_s_1', category: 'Sezonowa', title: 'Wyeliminuj 15 przeciwników w sezonie', target: 15, points: 140, statKey: 'kills' },
+      { id: 'm_s_2', category: 'Sezonowa', title: 'Rozegraj 5 meczów w GUTUŚ ROYALE', target: 5, points: 130, statKey: 'matches' },
+      { id: 'm_s_3', category: 'Sezonowa', title: 'Otwórz 3 Mops Boxy', target: 3, points: 110, statKey: 'boxesOpened' }
+    ];
+
+    // Droga Pucharów od 0 do 2000 pucharów co 200 pucharów, z Królewskim Mopsem na 2000
+    const TROPHY_ROAD = [
+      { trophies: 200,  label: '50 🪙 + 15 🧪', coins: 50,  elixirs: 15, skinId: null },
+      { trophies: 400,  label: '75 🪙 + 20 🧪', coins: 75,  elixirs: 20, skinId: null },
+      { trophies: 600,  label: '90 🪙 + 25 🧪', coins: 90,  elixirs: 25, skinId: null },
+      { trophies: 800,  label: '110 🪙 + 30 🧪', coins: 110, elixirs: 30, skinId: null },
+      { trophies: 1000, label: '130 🪙 + 35 🧪', coins: 130, elixirs: 35, skinId: null },
+      { trophies: 1200, label: '150 🪙 + 40 🧪', coins: 150, elixirs: 40, skinId: null },
+      { trophies: 1400, label: '175 🪙 + 45 🧪', coins: 175, elixirs: 45, skinId: null },
+      { trophies: 1600, label: '200 🪙 + 50 🧪', coins: 200, elixirs: 50, skinId: null },
+      { trophies: 1800, label: '240 🪙 + 60 🧪', coins: 240, elixirs: 60, skinId: null },
+      { trophies: 2000, label: 'KRÓLEWSKI MOPS: Imperator Gutuś I 👑', coins: 300, elixirs: 80, skinId: 'skin_kr_1' }
+    ];
+
+    // Definicje Mops Boxów
+    const BOX_TYPES = [
+      {
+        id: 'free',
+        name: 'Darmowy Box',
+        priceCoins: 0,
+        royalChance: 0,
+        desc: 'Okazjonalny darmowy box w sklepie (0% na Królewskiego).',
+        icon: '🎁',
+        cooldownMs: 3 * 60 * 1000 // 3 minuty odświeżenia dla wygody testowania i gry
+      },
+      {
+        id: 'small',
+        name: 'Mały Box',
+        priceCoins: 35,
+        royalChance: 0,
+        desc: '0% szans na Królewskiego Mopsa. Szybkie MopsCoiny i Eliksiry.',
+        icon: '📦',
+        cooldownMs: 0
+      },
+      {
+        id: 'normal',
+        name: 'Zwykły Box',
+        priceCoins: 70,
+        royalChance: 0,
+        desc: '0% szans na Królewskiego Mopsa. Skiny i zasoby.',
+        icon: '📫',
+        cooldownMs: 0
+      },
+      {
+        id: 'big',
+        name: 'Duży Box',
+        priceCoins: 140,
+        royalChance: 0.005, // 0.5% na Królewskiego Mopsa
+        desc: '0,5% szans na Królewskiego Mopsa oraz wyższe nagrody.',
+        icon: '🧰',
+        cooldownMs: 0
+      },
+      {
+        id: 'ultra',
+        name: 'Ultra Box',
+        priceCoins: 260,
+        royalChance: 0.03, // 3% na Królewskiego Mopsa z wyraźną złoto-tęczową animacją
+        desc: '3% szans na Królewskiego Mopsa — złoto-tęczowa animacja!',
+        icon: '👑',
+        cooldownMs: 0
+      }
+    ];
+
+    // =========================================================================
+    // 2. STAN GRACZA I ZAPIS W LOCALSTORAGE
+    // =========================================================================
+    function createDefaultState() {
+      return {
+        trophies: 0,
+        coins: 150,
+        elixirs: 40,
+        streak: 0,
+        ownedSkins: ['skin_gutus_default'],
+        equippedSkin: 'skin_gutus_default',
+        ownedWeapons: ['wpn_zwykly'],
+        equippedWeapon: 'wpn_zwykly',
+        weaponLevels: { wpn_zwykly: 1 },
+        ownedWeaponSkins: {},
+        equippedWeaponSkins: {},
+        passPurchased: false,
+        passPoints: 0,
+        claimedFreePass: [],
+        claimedPaidPass: [],
+        claimedTrophyMilestones: [],
+        lastFreeBoxTime: 0,
+        stats: {
+          kills: 0,
+          matches: 0,
+          top3: 0,
+          boxesOpened: 0
+        },
+        claimedMissions: []
+      };
+    }
+
+    let playerState = loadState();
+
+    // Zabezpieczenie, aby żadne przedmioty o rzadkości Karnetowy nie były aktywne bez odblokowania w MOPS PASS
+    function sanitizeKarnetowyExclusives(st) {
+      const karnetSkinIds = new Set(SKINS_DATA.filter(s => s.rarity === 'karnetowy').map(s => s.id));
+      st.ownedSkins = (st.ownedSkins || ['skin_gutus_default']).filter(id => {
+        if (!karnetSkinIds.has(id)) return true;
+        return (st.claimedFreePass || []).some(lvl => PASS_LEVELS[lvl - 1]?.freeReward?.type === 'skin' && PASS_LEVELS[lvl - 1]?.freeReward?.id === id)
+            || (st.claimedPaidPass || []).some(lvl => PASS_LEVELS[lvl - 1]?.paidReward?.type === 'skin' && PASS_LEVELS[lvl - 1]?.paidReward?.id === id);
+      });
+      if (!st.ownedSkins.includes('skin_gutus_default')) {
+        st.ownedSkins.unshift('skin_gutus_default');
+      }
+      if (!st.ownedSkins.includes(st.equippedSkin)) {
+        st.equippedSkin = 'skin_gutus_default';
+      }
+
+      const passWeaponUnlocked = (st.claimedPaidPass || []).some(lvl => PASS_LEVELS[lvl - 1]?.paidReward?.type === 'weapon' && PASS_LEVELS[lvl - 1]?.paidReward?.id === 'wpn_karnetowy');
+      if (!passWeaponUnlocked) {
+        st.ownedWeapons = (st.ownedWeapons || ['wpn_zwykly']).filter(id => id !== 'wpn_karnetowy');
+        if (st.equippedWeapon === 'wpn_karnetowy') {
+          st.equippedWeapon = 'wpn_zwykly';
+        }
+      }
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return createDefaultState();
+        const parsed = JSON.parse(raw);
+        const merged = {
+          ...createDefaultState(),
+          ...parsed,
+          trophies: Math.max(0, Number(parsed.trophies) || 0),
+          coins: Math.max(0, Number(parsed.coins) || 0),
+          elixirs: Math.max(0, Number(parsed.elixirs) || 0),
+          streak: Math.max(0, Number(parsed.streak) || 0),
+          passPoints: Math.max(0, Number(parsed.passPoints) || 0),
+          weaponLevels: { wpn_zwykly: 1, ...(parsed.weaponLevels || {}) },
+          ownedWeaponSkins: { ...(parsed.ownedWeaponSkins || {}) },
+          equippedWeaponSkins: { ...(parsed.equippedWeaponSkins || {}) },
+          stats: { ...createDefaultState().stats, ...(parsed.stats || {}) },
+          claimedFreePass: Array.isArray(parsed.claimedFreePass) ? parsed.claimedFreePass : [],
+          claimedPaidPass: Array.isArray(parsed.claimedPaidPass) ? parsed.claimedPaidPass : [],
+          claimedTrophyMilestones: Array.isArray(parsed.claimedTrophyMilestones) ? parsed.claimedTrophyMilestones : [],
+          claimedMissions: Array.isArray(parsed.claimedMissions) ? parsed.claimedMissions : []
+        };
+        sanitizeKarnetowyExclusives(merged);
+        return merged;
+      } catch (err) {
+        console.warn('Błąd odczytu localStorage, używam stanu domyślnego:', err);
+        return createDefaultState();
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(playerState));
+      } catch (err) {
+        console.warn('Nie udało się zapisać stanu w localStorage:', err);
+      }
+    }
+
+    // =========================================================================
+    // 3. EFEKTY DŹWIĘKOWE WEB AUDIO API
+    // =========================================================================
+    let audioCtx = null;
+    function ensureAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    function playSound(type) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'shoot') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.08);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.085);
+        } else if (type === 'hit') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.exponentialRampToValueAtTime(320, now + 0.06);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.start(now);
+          osc.stop(now + 0.065);
+        } else if (type === 'ko') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.setValueAtTime(420, now + 0.07);
+          osc.frequency.setValueAtTime(640, now + 0.14);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'jump') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.exponentialRampToValueAtTime(460, now + 0.12);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.13);
+        } else if (type === 'buy' || type === 'reward') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now);
+          osc.stop(now + 0.29);
+        } else if (type === 'royal') {
+          osc.type = 'triangle';
+          [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((freq, idx) => {
+            osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+          });
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+          osc.start(now);
+          osc.stop(now + 0.66);
+        } else {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.start(now);
+          osc.stop(now + 0.055);
+        }
+      } catch (_) {}
+    }
+
+    // =========================================================================
+    // 4. POWIADOMIENIA TOAST I POMOCNIKI INTERFEJSU
+    // =========================================================================
+    let toastTimeout = null;
+    function showToast(msg) {
+      const el = document.getElementById('toastBanner');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        el.classList.add('hidden');
+      }, 2600);
+    }
+
+    function getCurrentPassLevel() {
+      let lvl = 1;
+      for (const item of PASS_LEVELS) {
+        if (playerState.passPoints >= item.pointsRequired) {
+          lvl = Math.min(10, item.level + 1);
+        }
+      }
+      return Math.min(10, Math.max(1, Math.floor(playerState.passPoints / 50) + 1));
+    }
+
+    function getWeaponUpgradeCost(currentLvl) {
+      // Koszt rośnie o 2 co poziom: 2, 4, 6, 8, 10, 12, 14, 16, 18
+      return Math.max(2, Math.min(18, currentLvl * 2));
+    }
+
+    function updateTopBar() {
+      document.getElementById('statTrophies').textContent = playerState.trophies;
+      document.getElementById('statCoins').textContent = playerState.coins;
+      document.getElementById('statElixirs').textContent = playerState.elixirs;
+      document.getElementById('statStreak').textContent = playerState.streak;
+      document.getElementById('statPassLevel').textContent = getCurrentPassLevel();
+
+      const skin = SKINS_DATA.find(s => s.id === playerState.equippedSkin) || SKINS_DATA[0];
+      const wpn = WEAPONS_DATA.find(w => w.id === playerState.equippedWeapon) || WEAPONS_DATA[0];
+      const wLvl = playerState.weaponLevels[wpn.id] || 1;
+      document.getElementById('lobbyEquippedLabel').textContent = `${skin.name} • ${wpn.name} (Poz. ${wLvl})`;
+    }
+
+    // =========================================================================
+    // 5. SILNIK THREE.JS: MODEL MOPS 3D (Z KOSZULKĄ GUTUŚ), LOBBY 3D I ARENA 3D
+    // =========================================================================
+    let scene, camera, renderer;
+    let lobbyGroup, lobbyMopsMesh, lobbyPlatformRing;
+    let arenaGroup;
+    let coverBoxes = []; // { minX, maxX, minZ, maxZ, height }
+    const ARENA_HALF = 56;
+
+    // Tekstura koszulki Gutusia: czarna koszulka z tęczowym G i napisem "gutuś"
+    function createGutusShirtTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#111318';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Subtelne obramowanie koszulki
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(18, 18, 476, 476);
+
+      // Tęczowy gradient dla litery G
+      const grad = ctx.createLinearGradient(120, 80, 392, 340);
+      grad.addColorStop(0.0, '#ff3b30');
+      grad.addColorStop(0.2, '#ff9500');
+      grad.addColorStop(0.4, '#ffcc00');
+      grad.addColorStop(0.6, '#34c759');
+      grad.addColorStop(0.8, '#00c7be');
+      grad.addColorStop(1.0, '#af52de');
+
+      ctx.font = '900 220px Orbitron, Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = grad;
+      ctx.fillText('G', 256, 210);
+
+      // Napis "gutuś" pod literą G
+      ctx.font = '800 72px Inter, sans-serif';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText('gutuś', 256, 365);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    const gutusShirtTexture = createGutusShirtTexture();
+
+    // Tworzy model 3D mopsa z pyszczkiem, uszami, ogonkiem, koszulką, bronią i tarczą ochronną
+    function buildMopsCharacter(skin, weaponObj, weaponSkinObj, scaleFactor = 1.0) {
+      const root = new THREE.Group();
+
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(skin.bodyColor || '#d6bfa3'),
+        roughness: 0.65,
+        metalness: 0.05
+      });
+      const earMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(skin.earColor || '#2a211b'),
+        roughness: 0.7
+      });
+
+      const shirtMat = skin.isGutusShirt
+        ? new THREE.MeshStandardMaterial({ map: gutusShirtTexture, roughness: 0.55 })
+        : new THREE.MeshStandardMaterial({
+            color: new THREE.Color(skin.shirtColor || '#1e293b'),
+            roughness: 0.55,
+            metalness: skin.rarity === 'krolewski' ? 0.45 : 0.1
+          });
+
+      // Tułów + koszulka
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.05, 1.45), shirtMat);
+      torso.position.set(0, 1.05, 0);
+      torso.castShadow = true;
+      root.add(torso);
+
+      // Górna część tułowia z futerka mopsa
+      const furBack = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.35, 1.38), bodyMat);
+      furBack.position.set(0, 1.52, 0);
+      furBack.castShadow = true;
+      root.add(furBack);
+
+      // Głowa mopsa
+      const head = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.98, 1.05), bodyMat);
+      head.position.set(0, 2.02, 0.35);
+      head.castShadow = true;
+      root.add(head);
+
+      // Ciemny pyszczek mopsa
+      const snout = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.48, 0.42), earMat);
+      snout.position.set(0, 1.88, 0.92);
+      snout.castShadow = true;
+      root.add(snout);
+
+      // Oczy
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x090d16 });
+      const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.08), eyeMat);
+      leftEye.position.set(-0.24, 2.12, 0.88);
+      const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.08), eyeMat);
+      rightEye.position.set(0.24, 2.12, 0.88);
+      root.add(leftEye, rightEye);
+
+      // Klasyczne uszka mopsa
+      const leftEar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.38, 0.34), earMat);
+      leftEar.position.set(-0.44, 2.35, 0.45);
+      leftEar.rotation.z = 0.28;
+      const rightEar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.38, 0.34), earMat);
+      rightEar.position.set(0.44, 2.35, 0.45);
+      rightEar.rotation.z = -0.28;
+      root.add(leftEar, rightEar);
+
+      // Zwinięty ogonek
+      const tail = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.08, 8, 14, Math.PI * 1.4), earMat);
+      tail.position.set(0, 1.42, -0.82);
+      tail.rotation.y = Math.PI / 2;
+      root.add(tail);
+
+      // 4 łapki (zapisane w userData do animacji chodu)
+      const legGeo = new THREE.BoxGeometry(0.28, 0.55, 0.28);
+      const flLeg = new THREE.Mesh(legGeo, bodyMat);
+      flLeg.position.set(-0.36, 0.28, 0.48);
+      const frLeg = new THREE.Mesh(legGeo, bodyMat);
+      frLeg.position.set(0.36, 0.28, 0.48);
+      const blLeg = new THREE.Mesh(legGeo, bodyMat);
+      blLeg.position.set(-0.36, 0.28, -0.48);
+      const brLeg = new THREE.Mesh(legGeo, bodyMat);
+      brLeg.position.set(0.36, 0.28, -0.48);
+      [flLeg, frLeg, blLeg, brLeg].forEach(l => { l.castShadow = true; root.add(l); });
+
+      // Korona dla skinów Królewskich
+      if (skin.rarity === 'krolewski') {
+        const crownMat = new THREE.MeshStandardMaterial({
+          color: 0xfacc15,
+          emissive: 0xb45309,
+          emissiveIntensity: 0.35,
+          metalness: 0.7,
+          roughness: 0.25
+        });
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.34, 6), crownMat);
+        crown.position.set(0, 2.66, 0.35);
+        root.add(crown);
+      }
+
+      // Broń 3D trzymana z boku
+      const wColor = (weaponSkinObj && weaponSkinObj.color) || (weaponObj && weaponObj.color) || '#38bdf8';
+      const gunMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(wColor),
+        emissive: new THREE.Color(wColor),
+        emissiveIntensity: 0.25,
+        metalness: 0.4,
+        roughness: 0.3
+      });
+      const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.85), gunMat);
+      gunBody.position.set(0.68, 1.12, 0.55);
+      gunBody.castShadow = true;
+      root.add(gunBody);
+
+      // Tarcza ochronna (widoczna na starcie 3s oraz po odrodzeniu 5.0s)
+      const shieldMat = new THREE.MeshBasicMaterial({
+        color: 0x22d3ee,
+        transparent: true,
+        opacity: 0.28,
+        wireframe: false
+      });
+      const shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.85, 18, 14), shieldMat);
+      shieldMesh.position.set(0, 1.35, 0.1);
+      shieldMesh.visible = false;
+      root.add(shieldMesh);
+
+      root.scale.setScalar(scaleFactor);
+      root.userData = {
+        legs: [flLeg, frLeg, blLeg, brLeg],
+        shieldMesh,
+        gunBody
+      };
+      return root;
+    }
+
+    function initThreeScene() {
+      const container = document.getElementById('sceneContainer');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x060916);
+      scene.fog = new THREE.FogExp2(0x060916, 0.0085);
+
+      camera = new THREE.PerspectiveCamera(
+        62,
+        Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight),
+        0.1,
+        240
+      );
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.innerHTML = '';
+      container.appendChild(renderer.domElement);
+
+      // Światła sceny
+      const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x1e1b4b, 1.15);
+      scene.add(hemiLight);
+
+      const dirLight = new THREE.DirectionalLight(0xf8fafc, 1.25);
+      dirLight.position.set(28, 45, 24);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      scene.add(dirLight);
+
+      const neonPinkLight = new THREE.PointLight(0xf472b6, 1.8, 45);
+      neonPinkLight.position.set(-18, 10, -18);
+      scene.add(neonPinkLight);
+
+      const neonCyanLight = new THREE.PointLight(0x22d3ee, 1.8, 45);
+      neonCyanLight.position.set(18, 10, 18);
+      scene.add(neonCyanLight);
+
+      buildLobbyScene();
+      buildCyberArenaScene();
+      setSceneMode('lobby');
+      updateLobbyMopsModel();
+
+      window.addEventListener('resize', handleResize);
+    }
+
+    function handleResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight);
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    }
+
+    function buildLobbyScene() {
+      lobbyGroup = new THREE.Group();
+      scene.add(lobbyGroup);
+
+      // Podest w lobby 3D
+      const disc = new THREE.Mesh(
+        new THREE.CylinderGeometry(5.2, 5.8, 0.5, 36),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.6, roughness: 0.3 })
+      );
+      disc.position.y = -0.25;
+      disc.receiveShadow = true;
+      lobbyGroup.add(disc);
+
+      lobbyPlatformRing = new THREE.Mesh(
+        new THREE.TorusGeometry(5.35, 0.08, 12, 48),
+        new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+      );
+      lobbyPlatformRing.rotation.x = Math.PI / 2;
+      lobbyPlatformRing.position.y = 0.02;
+      lobbyGroup.add(lobbyPlatformRing);
+
+      // Neonowe słupy w tle lobby
+      const pillarColors = [0x22d3ee, 0xf472b6, 0xfacc15, 0xa855f7];
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const r = 14;
+        const p = new THREE.Mesh(
+          new THREE.BoxGeometry(0.4, 14, 0.4),
+          new THREE.MeshBasicMaterial({ color: pillarColors[i % pillarColors.length] })
+        );
+        p.position.set(Math.cos(angle) * r, 7, Math.sin(angle) * r);
+        lobbyGroup.add(p);
+      }
+    }
+
+    let lobbyRotationY = 0.4;
+    function updateLobbyMopsModel() {
+      if (!lobbyGroup) return;
+      if (lobbyMopsMesh) {
+        lobbyGroup.remove(lobbyMopsMesh);
+      }
+      const skin = SKINS_DATA.find(s => s.id === playerState.equippedSkin) || SKINS_DATA[0];
+      const wpn = WEAPONS_DATA.find(w => w.id === playerState.equippedWeapon) || WEAPONS_DATA[0];
+      const eqWSkinId = playerState.equippedWeaponSkins[wpn.id];
+      const wSkin = wpn.skins ? wpn.skins.find(s => s.id === eqWSkinId) : null;
+
+      lobbyMopsMesh = buildMopsCharacter(skin, wpn, wSkin, 1.45);
+      lobbyMopsMesh.rotation.y = lobbyRotationY;
+      lobbyGroup.add(lobbyMopsMesh);
+    }
+
+    function buildCyberArenaScene() {
+      arenaGroup = new THREE.Group();
+      coverBoxes = [];
+      scene.add(arenaGroup);
+
+      // Podłoże areny z siatką
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(ARENA_HALF * 2, ARENA_HALF * 2),
+        new THREE.MeshStandardMaterial({ color: 0x0b1024, roughness: 0.75, metalness: 0.25 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      arenaGroup.add(floor);
+
+      const grid = new THREE.GridHelper(ARENA_HALF * 2, 28, 0x22d3ee, 0x1e293b);
+      grid.position.y = 0.03;
+      arenaGroup.add(grid);
+
+      // Neonowe ściany okalające arenę
+      const wallMat = new THREE.MeshStandardMaterial({
+        color: 0x111833,
+        emissive: 0x0e7490,
+        emissiveIntensity: 0.22,
+        roughness: 0.4
+      });
+      const wallThickness = 2;
+      const wallHeight = 10;
+      const wallConfigs = [
+        [0, wallHeight / 2, -ARENA_HALF - 1, ARENA_HALF * 2 + 4, wallHeight, wallThickness],
+        [0, wallHeight / 2, ARENA_HALF + 1, ARENA_HALF * 2 + 4, wallHeight, wallThickness],
+        [-ARENA_HALF - 1, wallHeight / 2, 0, wallThickness, wallHeight, ARENA_HALF * 2 + 4],
+        [ARENA_HALF + 1, wallHeight / 2, 0, wallThickness, wallHeight, ARENA_HALF * 2 + 4]
+      ];
+      wallConfigs.forEach(([x, y, z, w, h, d]) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+        mesh.position.set(x, y, z);
+        arenaGroup.add(mesh);
+      });
+
+      // Budynki cyberpunkowe z neonami oraz niskie osłony taktyczne
+      const obstacles = [
+        { x: -24, z: -24, w: 10, h: 18, d: 10, neon: 0xf472b6, isCover: false },
+        { x:  24, z: -24, w: 10, h: 22, d: 10, neon: 0x22d3ee, isCover: false },
+        { x: -24, z:  24, w: 10, h: 16, d: 10, neon: 0xfacc15, isCover: false },
+        { x:  24, z:  24, w: 10, h: 20, d: 10, neon: 0xc084fc, isCover: false },
+        // Osłony na arenie
+        { x:   0, z: -14, w: 6,  h: 3.2, d: 2.2, neon: 0x22d3ee, isCover: true },
+        { x:   0, z:  14, w: 6,  h: 3.2, d: 2.2, neon: 0xf472b6, isCover: true },
+        { x: -14, z:   0, w: 2.2, h: 3.2, d: 6, neon: 0xfacc15, isCover: true },
+        { x:  14, z:   0, w: 2.2, h: 3.2, d: 6, neon: 0x38bdf8, isCover: true },
+        { x: -11, z: -11, w: 4.2, h: 2.8, d: 4.2, neon: 0xa855f7, isCover: true },
+        { x:  11, z:  11, w: 4.2, h: 2.8, d: 4.2, neon: 0x2dd4bf, isCover: true }
+      ];
+
+      obstacles.forEach(ob => {
+        const mat = new THREE.MeshStandardMaterial({
+          color: ob.isCover ? 0x172554 : 0x0f172a,
+          roughness: 0.45,
+          metalness: 0.45
+        });
+        const box = new THREE.Mesh(new THREE.BoxGeometry(ob.w, ob.h, ob.d), mat);
+        box.position.set(ob.x, ob.h / 2, ob.z);
+        box.castShadow = true;
+        box.receiveShadow = true;
+        arenaGroup.add(box);
+
+        // Neonowy pasek na obiekcie
+        const strip = new THREE.Mesh(
+          new THREE.BoxGeometry(ob.w + 0.12, 0.25, ob.d + 0.12),
+          new THREE.MeshBasicMaterial({ color: ob.neon })
+        );
+        strip.position.set(ob.x, Math.min(ob.h - 0.3, 3.0), ob.z);
+        arenaGroup.add(strip);
+
+        coverBoxes.push({
+          minX: ob.x - ob.w / 2,
+          maxX: ob.x + ob.w / 2,
+          minZ: ob.z - ob.d / 2,
+          maxZ: ob.z + ob.d / 2,
+          height: ob.h
+        });
+      });
+    }
+
+    function setSceneMode(mode) {
+      if (!lobbyGroup || !arenaGroup) return;
+      if (mode === 'lobby') {
+        lobbyGroup.visible = true;
+        arenaGroup.visible = false;
+        camera.position.set(0, 3.2, 8.2);
+        camera.lookAt(0, 1.5, 0);
+      } else {
+        lobbyGroup.visible = false;
+        arenaGroup.visible = true;
+      }
+    }
+
+    // Kolizja okrągłego mopsa (promień r) z budynkami/osłonami i granicami areny
+    function resolveArenaCollisions(pos, radius = 0.85) {
+      pos.x = Math.max(-ARENA_HALF + radius, Math.min(ARENA_HALF - radius, pos.x));
+      pos.z = Math.max(-ARENA_HALF + radius, Math.min(ARENA_HALF - radius, pos.z));
+
+      for (const b of coverBoxes) {
+        if (pos.y > b.height - 0.15) continue; // Możliwość przeskoczenia niskich osłon
+        const closestX = Math.max(b.minX, Math.min(pos.x, b.maxX));
+        const closestZ = Math.max(b.minZ, Math.min(pos.z, b.maxZ));
+        const dx = pos.x - closestX;
+        const dz = pos.z - closestZ;
+        const distSq = dx * dx + dz * dz;
+        if (distSq < radius * radius) {
+          const dist = Math.sqrt(distSq) || 0.001;
+          const overlap = radius - dist;
+          pos.x += (dx / dist) * overlap;
+          pos.z += (dz / dist) * overlap;
+        }
+      }
+    }
+
+    // =========================================================================
+    // 6. ZAKŁADKI LOBBY, MOPS BOXY (ZŁOTO-TĘCZOWA ANIMACJA), PASS, MISJE, PUCHARY
+    // =========================================================================
+    let activeTab = 'collection';
+    let activeMopsRarityFilter = 'all';
+    let activeArsenalRarityFilter = 'all';
+
+    function setLobbyTab(tabName) {
+      activeTab = tabName;
+      document.querySelectorAll('.lobby-tab-btn').forEach(btn => {
+        const active = btn.dataset.tab === tabName;
+        btn.className = `lobby-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+          active
+            ? 'bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-slate-950 shadow-md'
+            : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+        }`;
+      });
+      renderLobbyTab();
+    }
+
+    function setMopsRarityFilter(rarityId) {
+      activeMopsRarityFilter = rarityId;
+      renderLobbyTab();
+    }
+
+    function setArsenalRarityFilter(rarityName) {
+      activeArsenalRarityFilter = rarityName;
+      renderLobbyTab();
+    }
+
+    function renderLobbyTab() {
+      const container = document.getElementById('lobbyTabContent');
+      if (!container) return;
+
+      if (activeTab === 'collection') {
+        const list = activeMopsRarityFilter === 'all'
+          ? SKINS_DATA
+          : SKINS_DATA.filter(s => s.rarity === activeMopsRarityFilter);
+
+        container.innerHTML = `
+          <div class="mb-2.5 flex flex-wrap gap-1.5">
+            <button type="button" onclick="setMopsRarityFilter('all')" class="px-2.5 py-1 rounded-xl text-[11px] font-bold border ${activeMopsRarityFilter === 'all' ? 'bg-cyan-400 text-slate-950 border-cyan-200' : 'bg-slate-800 text-slate-300 border-slate-700'}">
+              Wszystkie (${SKINS_DATA.length})
+            </button>
+            ${MOPS_RARITIES.map(r => {
+              const count = SKINS_DATA.filter(s => s.rarity === r.id).length;
+              const priceTxt = r.id === 'karnetowy' ? 'Tylko Pass' : (r.id === 'krolewski' ? '2000 🏆/Box' : `${r.skinPrice} 🪙`);
+              const active = activeMopsRarityFilter === r.id;
+              return `
+                <button type="button" onclick="setMopsRarityFilter('${r.id}')" class="px-2.5 py-1 rounded-xl text-[11px] font-bold border ${active ? r.badge + ' ring-2 ring-white' : 'bg-slate-800 text-slate-300 border-slate-700'}">
+                  ${r.label} (${count}) • ${priceTxt}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+            ${list.map(skin => {
+              const owned = playerState.ownedSkins.includes(skin.id);
+              const equipped = playerState.equippedSkin === skin.id;
+              const rMeta = getMopsRarity(skin.rarity);
+              const price = getMopsSkinPrice(skin);
+              const isKarnet = skin.rarity === 'karnetowy';
+              const isRoyal = skin.rarity === 'krolewski';
+
+              return `
+                <div class="bg-slate-900/95 border ${equipped ? 'border-cyan-400 ring-2 ring-cyan-400/40' : 'border-slate-700/80'} rounded-2xl p-2.5 flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="flex items-center justify-between gap-1 mb-1.5">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full border ${rMeta.badge} truncate">${rMeta.label}</span>
+                      <span class="text-[10px] font-bold text-amber-300 shrink-0">${isKarnet ? 'MOPS PASS' : (isRoyal ? '2000 🏆' : `${price} 🪙`)}</span>
+                    </div>
+                    <div class="w-full h-11 rounded-xl mb-1.5 flex items-center justify-center border border-white/10" style="background: linear-gradient(135deg, ${skin.bodyColor}, ${skin.shirtColor})">
+                      <span class="text-lg">${isRoyal ? '👑' : (isKarnet ? '🎟️' : '🐶')}</span>
+                    </div>
+                    <div class="font-bold text-xs text-white truncate">${skin.name}</div>
+                    <div class="text-[10px] text-slate-400 line-clamp-2">${skin.desc}</div>
+                  </div>
+                  ${owned
+                    ? `<button type="button" onclick="equipMopsSkin('${skin.id}')" class="w-full py-1.5 rounded-xl text-[11px] font-bold ${equipped ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 hover:bg-slate-600 text-white'}">${equipped ? 'WYBRANY' : 'UBIERZ'}</button>`
+                    : isKarnet
+                      ? `<button type="button" onclick="setLobbyTab('pass')" class="w-full py-1.5 rounded-xl text-[11px] font-bold bg-teal-900/80 hover:bg-teal-800 text-teal-200 border border-teal-500/40">Tylko w MOPS PASS</button>`
+                      : isRoyal
+                        ? `<button type="button" onclick="setLobbyTab('trophies')" class="w-full py-1.5 rounded-xl text-[11px] font-bold bg-amber-900/70 hover:bg-amber-800 text-amber-200 border border-amber-400/40">2000 🏆 lub Boxy</button>`
+                        : `<button type="button" onclick="buyMopsSkin('${skin.id}')" class="w-full py-1.5 rounded-xl text-[11px] font-bold bg-amber-400 hover:bg-amber-300 text-slate-950">Kup ${price} 🪙</button>`
+                  }
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } else if (activeTab === 'arsenal') {
+        const filteredWeapons = activeArsenalRarityFilter === 'all'
+          ? WEAPONS_DATA
+          : WEAPONS_DATA.filter(w => w.rarity === activeArsenalRarityFilter);
+
+        const activeWpn = WEAPONS_DATA.find(w => w.id === playerState.equippedWeapon) || WEAPONS_DATA[0];
+        const activeWpnLvl = playerState.weaponLevels[activeWpn.id] || 1;
+        const upgCost = getWeaponUpgradeCost(activeWpnLvl);
+
+        container.innerHTML = `
+          <div class="mb-2.5 flex flex-wrap gap-1.5">
+            <button type="button" onclick="setArsenalRarityFilter('all')" class="px-2.5 py-1 rounded-xl text-[11px] font-bold border ${activeArsenalRarityFilter === 'all' ? 'bg-cyan-400 text-slate-950 border-cyan-200' : 'bg-slate-800 text-slate-300 border-slate-700'}">
+              Wszystkie (9)
+            </button>
+            ${WEAPON_RARITIES_ORDER.map(rName => {
+              const c = getWeaponBaseCost(rName);
+              const tag = rName === 'Karnetowy' ? 'Tylko Pass' : (rName === 'Królewski' ? '2000 🏆/Box' : `${c} 🪙`);
+              return `
+                <button type="button" onclick="setArsenalRarityFilter('${rName}')" class="px-2.5 py-1 rounded-xl text-[11px] font-bold border ${activeArsenalRarityFilter === rName ? 'bg-fuchsia-500 text-white border-fuchsia-300' : 'bg-slate-800 text-slate-300 border-slate-700'}">
+                  ${rName} • ${tag}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              ${filteredWeapons.map(w => {
+                const owned = playerState.ownedWeapons.includes(w.id);
+                const equipped = playerState.equippedWeapon === w.id;
+                const lvl = playerState.weaponLevels[w.id] || 1;
+                const cost = getWeaponBaseCost(w.rarity);
+                const passOnly = w.rarity === 'Karnetowy';
+                const royalOnly = w.rarity === 'Królewski';
+
+                return `
+                  <div class="bg-slate-900/95 border ${equipped ? 'border-cyan-400 ring-2 ring-cyan-400/40' : 'border-slate-700/80'} rounded-2xl p-3 flex flex-col justify-between gap-2">
+                    <div>
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="font-bold text-xs sm:text-sm text-white truncate">${w.name}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-cyan-300 font-bold shrink-0">${w.rarity}</span>
+                      </div>
+                      <div class="text-[11px] text-slate-400 mt-1">
+                        Poz. <span class="text-white font-bold">${lvl}/10</span> • DMG: <span class="text-amber-300 font-bold">${w.baseDmg + (lvl - 1) * 4}</span> • +${lvl * 4} HP
+                      </div>
+                    </div>
+                    ${owned
+                      ? `<button type="button" onclick="equipWeapon('${w.id}')" class="w-full py-1.5 rounded-xl text-xs font-bold ${equipped ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 hover:bg-slate-600 text-white'}">${equipped ? 'AKTYWNA' : 'WYBIERZ'}</button>`
+                      : passOnly
+                        ? `<button type="button" onclick="setLobbyTab('pass')" class="w-full py-1.5 rounded-xl text-[11px] font-bold bg-teal-900/80 hover:bg-teal-800 text-teal-200 border border-teal-500/40">Tylko w MOPS PASS</button>`
+                        : royalOnly
+                          ? `<button type="button" onclick="setLobbyTab('trophies')" class="w-full py-1.5 rounded-xl text-[11px] font-bold bg-amber-900/70 text-amber-200 border border-amber-400/40">2000 🏆 lub Boxy</button>`
+                          : `<button type="button" onclick="buyWeapon('${w.id}')" class="w-full py-1.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950">Kup ${cost} 🪙</button>`
+                    }
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- Panel ulepszeń poz. 1-10 za Eliksiry Mocy oraz skiny broni -->
+            <div class="bg-slate-900 border border-purple-500/40 rounded-2xl p-3 flex flex-col justify-between gap-3">
+              <div>
+                <div class="text-[10px] font-cyber font-bold text-purple-300 uppercase">Ulepszenie i skiny broni</div>
+                <div class="font-cyber font-bold text-sm text-white mt-0.5">${activeWpn.name} (Poz. ${activeWpnLvl}/10)</div>
+                <div class="text-[11px] text-slate-400 mt-1">Koszt ulepszenia: 2, 4, 6, 8, 10, 12, 14, 16, 18 🧪.</div>
+
+                <div class="mt-2.5">
+                  <div class="text-[11px] font-bold text-slate-300 mb-1">Skiny broni:</div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="equipWeaponSkin('${activeWpn.id}', null)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${!playerState.equippedWeaponSkins[activeWpn.id] ? 'bg-cyan-400 text-slate-950' : 'bg-slate-800 text-slate-300'}">
+                      Standard
+                    </button>
+                    ${(activeWpn.skins || []).map(ws => {
+                      const ownedWS = (playerState.ownedWeaponSkins[activeWpn.id] || []).includes(ws.id);
+                      const eqWS = playerState.equippedWeaponSkins[activeWpn.id] === ws.id;
+                      const wSkinPass = ws.passOnly || activeWpn.rarity === 'Karnetowy';
+                      const wSkinCost = getWeaponSkinCost(activeWpn.rarity);
+                      if (ownedWS) {
+                        return `<button type="button" onclick="equipWeaponSkin('${activeWpn.id}', '${ws.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${eqWS ? 'bg-cyan-400 text-slate-950' : 'bg-slate-800 text-white'}">${ws.name}</button>`;
+                      }
+                      if (wSkinPass) {
+                        return `<button type="button" onclick="setLobbyTab('pass')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-950 text-teal-200 border border-teal-500/40">🔒 ${ws.name} (Pass)</button>`;
+                      }
+                      return `<button type="button" onclick="buyWeaponSkin('${activeWpn.id}', '${ws.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-400 hover:bg-amber-300 text-slate-950">Kup ${ws.name} (${wSkinCost} 🪙)</button>`;
+                    }).join('')}
+                  </div>
+                </div>
+              </div>
+
+              ${activeWpnLvl < 10
+                ? `<button type="button" onclick="upgradeWeapon('${activeWpn.id}')" class="w-full py-2 rounded-xl font-cyber font-bold text-xs bg-gradient-to-r from-purple-600 to-pink-600 hover:brightness-110 text-white">ULEPSZ NA POZ. ${activeWpnLvl + 1} (${upgCost} 🧪)</button>`
+                : `<div class="text-center py-2 rounded-xl bg-emerald-950 border border-emerald-500/40 text-emerald-300 font-bold text-xs">MAKSYMALNY POZIOM 10</div>`
+              }
+            </div>
+          </div>
+        `;
+      } else if (activeTab === 'shop') {
+        const now = Date.now();
+        const freeBoxDef = BOX_TYPES.find(b => b.id === 'free');
+        const remMs = Math.max(0, freeBoxDef.cooldownMs - (now - (playerState.lastFreeBoxTime || 0)));
+        const freeReady = remMs === 0;
+        const remSec = Math.ceil(remMs / 1000);
+
+        container.innerHTML = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mb-3">
+            ${BOX_TYPES.map(box => {
+              const isFree = box.id === 'free';
+              const disabled = isFree && !freeReady;
+              return `
+                <div class="bg-slate-900/95 border ${box.id === 'ultra' ? 'border-amber-400/70' : 'border-slate-700/80'} rounded-2xl p-3 flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="text-2xl">${box.icon}</span>
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-amber-300">
+                        ${box.royalChance > 0 ? `${(box.royalChance * 100).toFixed(1)}% Król` : '0% Król'}
+                      </span>
+                    </div>
+                    <div class="font-cyber font-bold text-xs sm:text-sm text-white mt-1.5">${box.name}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">${box.desc}</div>
+                  </div>
+                  <button
+                    type="button"
+                    ${disabled ? 'disabled' : ''}
+                    onclick="openMopsBox('${box.id}')"
+                    class="w-full py-2 rounded-xl font-cyber font-bold text-xs ${disabled ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : (box.id === 'ultra' ? 'bg-gradient-to-r from-amber-300 via-pink-500 to-cyan-400 text-slate-950 hover:brightness-110' : 'bg-cyan-400 hover:bg-cyan-300 text-slate-950')}"
+                  >
+                    ${isFree ? (freeReady ? 'ODBIERZ DARMOWY' : `ZA ${remSec}s`) : `OTWÓRZ (${box.priceCoins} 🪙)`}
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="text-slate-300">
+              <span class="font-bold text-amber-300">Pakiet Eliksirów Mocy:</span> +30 🧪 za 60 🪙 (przedmioty o rzadkości Karnetowy są dostępne tylko w MOPS PASS).
+            </div>
+            <button type="button" onclick="buyElixirPack()" class="px-4 py-2 rounded-xl font-bold bg-fuchsia-500 hover:bg-fuchsia-400 text-white">
+              Kup +30 🧪 (60 🪙)
+            </button>
+          </div>
+        `;
+      } else if (activeTab === 'pass') {
+        const currentLvl = getCurrentPassLevel();
+        container.innerHTML = `
+          <div class="mb-3 bg-slate-900 border border-teal-500/40 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="font-cyber font-bold text-sm text-teal-300">
+                MOPS PASS • Punkty: <span class="text-white">${playerState.passPoints}</span> • Poziom: <span class="text-amber-300">${currentLvl}/10</span>
+              </div>
+              <div class="text-[11px] text-slate-400">Wszystkie przedmioty z rzadkości Karnetowy znajdują się wyłącznie w MOPS PASS.</div>
+            </div>
+            ${playerState.passPurchased
+              ? `<span class="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-bold text-xs">ŚCIEŻKA PŁATNA AKTYWNA ✓</span>`
+              : `<button type="button" onclick="buyMopsPass()" class="px-4 py-2 rounded-xl font-cyber font-bold text-xs bg-gradient-to-r from-amber-300 to-pink-500 text-slate-950 hover:brightness-110">ODBLOKUJ PŁATNY PASS (250 🪙)</button>`
+            }
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+            ${PASS_LEVELS.map(item => {
+              const unlocked = playerState.passPoints >= item.pointsRequired;
+              const freeClaimed = playerState.claimedFreePass.includes(item.level);
+              const paidClaimed = playerState.claimedPaidPass.includes(item.level);
+
+              return `
+                <div class="bg-slate-900/95 border ${unlocked ? 'border-teal-400/60' : 'border-slate-800'} rounded-2xl p-2.5 flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="flex items-center justify-between text-[11px] font-bold">
+                      <span class="text-cyan-300">POZ. ${item.level}</span>
+                      <span class="text-slate-400">${item.pointsRequired} pkt</span>
+                    </div>
+                    <div class="mt-1.5 p-2 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                      <div class="text-[10px] font-bold text-emerald-300 uppercase">Darmowa</div>
+                      <div class="text-[11px] text-white font-semibold truncate">${item.freeReward.label}</div>
+                      <button
+                        type="button"
+                        ${(!unlocked || freeClaimed) ? 'disabled' : ''}
+                        onclick="claimPassReward(${item.level}, 'free')"
+                        class="mt-1.5 w-full py-1 rounded-lg text-[10px] font-bold ${freeClaimed ? 'bg-slate-700 text-slate-400' : (unlocked ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300' : 'bg-slate-800 text-slate-500')}"
+                      >
+                        ${freeClaimed ? 'ODEBRANO' : (unlocked ? 'ODBIERZ DARMOWĄ' : 'ZABLOKOWANE')}
+                      </button>
+                    </div>
+
+                    <div class="mt-1.5 p-2 rounded-xl bg-slate-800/80 border border-amber-500/30">
+                      <div class="text-[10px] font-bold text-amber-300 uppercase">Płatna (250 🪙)</div>
+                      <div class="text-[11px] text-white font-semibold truncate">${item.paidReward.label}</div>
+                      <button
+                        type="button"
+                        ${(!unlocked || !playerState.passPurchased || paidClaimed) ? 'disabled' : ''}
+                        onclick="claimPassReward(${item.level}, 'paid')"
+                        class="mt-1.5 w-full py-1 rounded-lg text-[10px] font-bold ${paidClaimed ? 'bg-slate-700 text-slate-400' : ((unlocked && playerState.passPurchased) ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-slate-800 text-slate-500')}"
+                      >
+                        ${paidClaimed ? 'ODEBRANO' : (!playerState.passPurchased ? 'WYMAGA PASSA' : (unlocked ? 'ODBIERZ PŁATNĄ' : 'ZABLOKOWANE'))}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } else if (activeTab === 'missions') {
+        container.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            ${MISSIONS_TEMPLATE.map(m => {
+              const currentVal = playerState.stats[m.statKey] || 0;
+              const progress = Math.min(m.target, currentVal);
+              const done = currentVal >= m.target;
+              const claimed = playerState.claimedMissions.includes(m.id);
+              const pct = Math.round((progress / m.target) * 100);
+
+              return `
+                <div class="bg-slate-900/95 border border-slate-700/80 rounded-2xl p-3 flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${m.category === 'Dzienna' ? 'bg-cyan-500/20 text-cyan-300' : 'bg-fuchsia-500/20 text-fuchsia-300'}">${m.category}</span>
+                      <span class="text-xs font-extrabold text-teal-300">+${m.points} pkt Pass</span>
+                    </div>
+                    <div class="font-bold text-xs sm:text-sm text-white mt-1.5">${m.title}</div>
+                    <div class="mt-2 w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-500" style="width:${pct}%"></div>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-1">Postęp: ${progress} / ${m.target}</div>
+                  </div>
+                  <button
+                    type="button"
+                    ${(!done || claimed) ? 'disabled' : ''}
+                    onclick="claimMission('${m.id}')"
+                    class="w-full py-1.5 rounded-xl text-xs font-bold ${claimed ? 'bg-slate-800 text-slate-400' : (done ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950' : 'bg-slate-800 text-slate-500')}"
+                  >
+                    ${claimed ? 'ODEBRANO PUNKTY' : (done ? `ODBIERZ +${m.points} PKT` : 'W TRAKCIE')}
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } else if (activeTab === 'trophies') {
+        container.innerHTML = `
+          <div class="mb-2.5 text-xs text-slate-300">
+            Aktualne puchary: <span class="font-cyber font-bold text-amber-300">${playerState.trophies} / 2000 🏆</span> • Nagrody co 200 pucharów, a na 2000 czeka <span class="font-bold text-yellow-300">Królewski Mops</span>!
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            ${TROPHY_ROAD.map(step => {
+              const reached = playerState.trophies >= step.trophies;
+              const claimed = playerState.claimedTrophyMilestones.includes(step.trophies);
+              const isFinalRoyal = step.trophies === 2000;
+
+              return `
+                <div class="bg-slate-900/95 border ${isFinalRoyal ? 'border-amber-300 ring-2 ring-amber-300/30' : (reached ? 'border-cyan-400/60' : 'border-slate-800')} rounded-2xl p-2.5 flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="font-cyber font-black text-xs ${isFinalRoyal ? 'text-amber-300' : 'text-cyan-300'}">${step.trophies} 🏆</div>
+                    <div class="text-[11px] text-white font-semibold mt-1">${step.label}</div>
+                  </div>
+                  <button
+                    type="button"
+                    ${(!reached || claimed) ? 'disabled' : ''}
+                    onclick="claimTrophyReward(${step.trophies})"
+                    class="w-full py-1.5 rounded-xl text-[11px] font-bold ${claimed ? 'bg-slate-800 text-slate-400' : (reached ? 'bg-amber-400 hover:bg-amber-300 text-slate-950' : 'bg-slate-800 text-slate-500')}"
+                  >
+                    ${claimed ? 'ODEBRANO' : (reached ? 'ODBIERZ' : `${step.trophies} 🏆`)}
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+    }
+
+    // Akcje zakupów, ulepszeń i odbioru nagród
+    function buyMopsSkin(skinId) {
+      const skin = SKINS_DATA.find(s => s.id === skinId);
+      if (!skin || playerState.ownedSkins.includes(skinId)) return;
+      if (skin.rarity === 'karnetowy') {
+        showToast('Ten skin jest dostępny wyłącznie w MOPS PASS!');
+        setLobbyTab('pass');
+        return;
+      }
+      if (skin.rarity === 'krolewski') {
+        showToast('Królewski skin jest na 2000 pucharów lub w Mops Boxach!');
+        return;
+      }
+      const price = getMopsSkinPrice(skin);
+      if (playerState.coins < price) {
+        showToast(`Potrzebujesz ${price} 🪙 (masz ${playerState.coins} 🪙).`);
+        return;
+      }
+      playerState.coins -= price;
+      playerState.ownedSkins.push(skinId);
+      playerState.equippedSkin = skinId;
+      saveState();
+      playSound('buy');
+      updateTopBar();
+      renderLobbyTab();
+      updateLobbyMopsModel();
+      showToast(`Odblokowano: ${skin.name}!`);
+    }
+
+    function equipMopsSkin(skinId) {
+      if (!playerState.ownedSkins.includes(skinId)) return;
+      playerState.equippedSkin = skinId;
+      saveState();
+      playSound('click');
+      updateTopBar();
+      renderLobbyTab();
+      updateLobbyMopsModel();
+    }
+
+    function buyWeapon(weaponId) {
+      const w = WEAPONS_DATA.find(item => item.id === weaponId);
+      if (!w || playerState.ownedWeapons.includes(weaponId)) return;
+      if (w.rarity === 'Karnetowy') {
+        showToast('Karnetowa broń jest dostępna wyłącznie w MOPS PASS!');
+        setLobbyTab('pass');
+        return;
+      }
+      if (w.rarity === 'Królewski') {
+        showToast('Królewska broń jest na Drodze Pucharów lub w Boxach!');
+        return;
+      }
+      const cost = getWeaponBaseCost(w.rarity);
+      if (playerState.coins < cost) {
+        showToast(`Potrzebujesz ${cost} 🪙.`);
+        return;
+      }
+      playerState.coins -= cost;
+      playerState.ownedWeapons.push(weaponId);
+      playerState.weaponLevels[weaponId] = playerState.weaponLevels[weaponId] || 1;
+      playerState.equippedWeapon = weaponId;
+      saveState();
+      playSound('buy');
+      updateTopBar();
+      renderLobbyTab();
+      updateLobbyMopsModel();
+      showToast(`Kupiono broń: ${w.name}!`);
+    }
+
+    function buyWeaponSkin(weaponId, skinId) {
+      const w = WEAPONS_DATA.find(item => item.id === weaponId);
+      const ws = w && w.skins ? w.skins.find(s => s.id === skinId) : null;
+      if (!w || !ws || ws.passOnly || w.rarity === 'Karnetowy') return;
+      const cost = getWeaponSkinCost(w.rarity);
+      if (playerState.coins < cost) {
+        showToast(`Potrzebujesz ${cost} 🪙 na skin broni.`);
+        return;
+      }
+      playerState.coins -= cost;
+      if (!playerState.ownedWeaponSkins[weaponId]) playerState.ownedWeaponSkins[weaponId] = [];
+      if (!playerState.ownedWeaponSkins[weaponId].includes(skinId)) {
+        playerState.ownedWeaponSkins[weaponId].push(skinId);
+      }
+      playerState.equippedWeaponSkins[weaponId] = skinId;
+      saveState();
+      playSound('buy');
+      updateTopBar();
+      renderLobbyTab();
+      updateLobbyMopsModel();
+      showToast(`Założono skin broni: ${ws.name}!`);
+    }
+
+    function equipWeapon(weaponId) {
+      if (!playerState.ownedWeapons.includes(weaponId)) return;
+      playerState.equippedWeapon = weaponId;
+      saveState();
+      playSound('click');
+      updateTopBar();
+      renderLobbyTab();
+      updateLobbyMopsModel();
+    }
+
+    function equipWeaponSkin(weaponId, skinId) {
+      if (!skinId) {
+        delete playerState.equippedWeaponSkins[weaponId];
+      } else {
+        const owned = playerState.ownedWeaponSkins[weaponId] || [];
+        if (!owned.includes(skinId)) return;
+        playerState.equippedWeaponSkins[weaponId] = skinId;
+      }
+      saveState();
+      playSound('click');
+      renderLobbyTab();
+      updateLobbyMopsModel();
+    }
+
+    function upgradeWeapon(weaponId) {
+      const w = WEAPONS_DATA.find(item => item.id === weaponId);
+      if (!w || !playerState.ownedWeapons.includes(weaponId)) return;
+      const curLvl = playerState.weaponLevels[weaponId] || 1;
+      if (curLvl >= 10) return;
+      const cost = getWeaponUpgradeCost(curLvl);
+      if (playerState.elixirs < cost) {
+        showToast(`Brakuje Eliksirów Mocy! Potrzebujesz ${cost} 🧪.`);
+        return;
+      }
+      playerState.elixirs -= cost;
+      playerState.weaponLevels[weaponId] = curLvl + 1;
+      saveState();
+      playSound('reward');
+      updateTopBar();
+      renderLobbyTab();
+      showToast(`${w.name} ulepszona do poziomu ${curLvl + 1}!`);
+    }
+
+    function buyElixirPack() {
+      if (playerState.coins < 60) {
+        showToast('Potrzebujesz 60 🪙 na pakiet +30 🧪.');
+        return;
+      }
+      playerState.coins -= 60;
+      playerState.elixirs += 30;
+      saveState();
+      playSound('buy');
+      updateTopBar();
+      renderLobbyTab();
+      showToast('Dodano +30 Eliksirów Mocy 🧪!');
+    }
+
+    function buyMopsPass() {
+      if (playerState.passPurchased) return;
+      if (playerState.coins < 250) {
+        showToast('Potrzebujesz 250 🪙, aby odblokować płatny MOPS PASS.');
+        return;
+      }
+      playerState.coins -= 250;
+      playerState.passPurchased = true;
+      saveState();
+      playSound('reward');
+      updateTopBar();
+      renderLobbyTab();
+      showToast('Odblokowano płatny MOPS PASS!');
+    }
+
+    function grantPassRewardObject(reward) {
+      if (!reward) return;
+      if (reward.type === 'skin') {
+        if (!playerState.ownedSkins.includes(reward.id)) {
+          playerState.ownedSkins.push(reward.id);
+        }
+        playerState.equippedSkin = reward.id;
+        updateLobbyMopsModel();
+      } else if (reward.type === 'weapon') {
+        if (!playerState.ownedWeapons.includes(reward.id)) {
+          playerState.ownedWeapons.push(reward.id);
+        }
+        playerState.weaponLevels[reward.id] = playerState.weaponLevels[reward.id] || 1;
+        playerState.equippedWeapon = reward.id;
+        updateLobbyMopsModel();
+      } else if (reward.type === 'weapon_skin') {
+        if (!playerState.ownedWeapons.includes(reward.weaponId)) {
+          playerState.ownedWeapons.push(reward.weaponId);
+        }
+        if (!playerState.ownedWeaponSkins[reward.weaponId]) {
+          playerState.ownedWeaponSkins[reward.weaponId] = [];
+        }
+        if (!playerState.ownedWeaponSkins[reward.weaponId].includes(reward.skinId)) {
+          playerState.ownedWeaponSkins[reward.weaponId].push(reward.skinId);
+        }
+        playerState.equippedWeapon = reward.weaponId;
+        playerState.equippedWeaponSkins[reward.weaponId] = reward.skinId;
+        updateLobbyMopsModel();
+      }
+    }
+
+    function claimPassReward(level, track) {
+      const item = PASS_LEVELS.find(p => p.level === level);
+      if (!item || playerState.passPoints < item.pointsRequired) return;
+      if (track === 'free') {
+        if (playerState.claimedFreePass.includes(level)) return;
+        playerState.claimedFreePass.push(level);
+        grantPassRewardObject(item.freeReward);
+        showToast(`Odebrano: ${item.freeReward.label}`);
+      } else {
+        if (!playerState.passPurchased || playerState.claimedPaidPass.includes(level)) return;
+        playerState.claimedPaidPass.push(level);
+        grantPassRewardObject(item.paidReward);
+        showToast(`Odebrano: ${item.paidReward.label}`);
+      }
+      saveState();
+      playSound('reward');
+      updateTopBar();
+      renderLobbyTab();
+    }
+
+    function claimMission(missionId) {
+      const m = MISSIONS_TEMPLATE.find(item => item.id === missionId);
+      if (!m || playerState.claimedMissions.includes(missionId)) return;
+      if ((playerState.stats[m.statKey] || 0) < m.target) return;
+      playerState.claimedMissions.push(missionId);
+      playerState.passPoints += m.points;
+      saveState();
+      playSound('reward');
+      updateTopBar();
+      renderLobbyTab();
+      showToast(`Misja ukończona! +${m.points} pkt do MOPS PASS.`);
+    }
+
+    function claimTrophyReward(trophiesThreshold) {
+      const step = TROPHY_ROAD.find(s => s.trophies === trophiesThreshold);
+      if (!step || playerState.trophies < step.trophies) return;
+      if (playerState.claimedTrophyMilestones.includes(step.trophies)) return;
+
+      playerState.claimedTrophyMilestones.push(step.trophies);
+      playerState.coins += step.coins;
+      playerState.elixirs += step.elixirs;
+      if (step.skinId) {
+        if (!playerState.ownedSkins.includes(step.skinId)) {
+          playerState.ownedSkins.push(step.skinId);
+        }
+        playerState.equippedSkin = step.skinId;
+        updateLobbyMopsModel();
+      }
+      saveState();
+      playSound('royal');
+      updateTopBar();
+      renderLobbyTab();
+      showToast(`Odebrano nagrodę za ${step.trophies} 🏆!`);
+    }
+
+    // Otwieranie Mops Boxa (z wyraźną złoto-tęczową animacją dla Królewskiego Mopsa)
+    function openMopsBox(boxId) {
+      const box = BOX_TYPES.find(b => b.id === boxId);
+      if (!box) return;
+
+      const now = Date.now();
+      if (box.id === 'free') {
+        const elapsed = now - (playerState.lastFreeBoxTime || 0);
+        if (elapsed < box.cooldownMs) {
+          showToast('Darmowy Box jest jeszcze na odnowieniu.');
+          return;
+        }
+        playerState.lastFreeBoxTime = now;
+      } else {
+        if (playerState.coins < box.priceCoins) {
+          showToast(`Potrzebujesz ${box.priceCoins} 🪙, aby otworzyć ${box.name}.`);
+          return;
+        }
+        playerState.coins -= box.priceCoins;
+      }
+
+      playerState.stats.boxesOpened = (playerState.stats.boxesOpened || 0) + 1;
+
+      // Losowanie nagrody (z wykluczeniem przedmiotów wyłącznie z MOPS PASS)
+      const royalSkins = SKINS_DATA.filter(s => s.rarity === 'krolewski');
+      const hitRoyal = box.royalChance > 0 && Math.random() < box.royalChance && royalSkins.length > 0;
+
+      let rewardTitle = '';
+      let rewardSubtitle = '';
+      let rewardIcon = box.icon;
+
+      if (hitRoyal) {
+        const chosenRoyal = royalSkins[Math.floor(Math.random() * royalSkins.length)];
+        if (!playerState.ownedSkins.includes(chosenRoyal.id)) {
+          playerState.ownedSkins.push(chosenRoyal.id);
+        }
+        playerState.equippedSkin = chosenRoyal.id;
+        updateLobbyMopsModel();
+        rewardTitle = `KRÓLEWSKI MOPS: ${chosenRoyal.name}!`;
+        rewardSubtitle = 'Złoto-tęczowy traf! Skin został założony w lobby!';
+        rewardIcon = '👑';
+      } else {
+        // Losowanie skinów spoza kategorii Karnetowy i Królewski lub walut
+        const eligibleSkins = SKINS_DATA.filter(s => s.rarity !== 'karnetowy' && s.rarity !== 'krolewski');
+        const roll = Math.random();
+        if (roll < 0.45 && eligibleSkins.length > 0) {
+          const picked = eligibleSkins[Math.floor(Math.random() * eligibleSkins.length)];
+          if (!playerState.ownedSkins.includes(picked.id)) {
+            playerState.ownedSkins.push(picked.id);
+            playerState.equippedSkin = picked.id;
+            updateLobbyMopsModel();
+            rewardTitle = `Nowy mops: ${picked.name}!`;
+            rewardSubtitle = `Rzadkość: ${getMopsRarity(picked.rarity).label} — założono w lobby!`;
+            rewardIcon = '🐶';
+          } else {
+            const bonusCoins = box.id === 'ultra' ? 85 : (box.id === 'big' ? 45 : 20);
+            playerState.coins += bonusCoins;
+            rewardTitle = `Duplikat! +${bonusCoins} MopsCoinów`;
+            rewardSubtitle = `Posiadasz już ${picked.name}, więc otrzymujesz rekompensatę.`;
+            rewardIcon = '🪙';
+          }
+        } else {
+          const bonusCoins = box.id === 'ultra' ? 90 : (box.id === 'big' ? 50 : (box.id === 'normal' ? 30 : 18));
+          const bonusElixirs = box.id === 'ultra' ? 35 : (box.id === 'big' ? 20 : 10);
+          playerState.coins += bonusCoins;
+          playerState.elixirs += bonusElixirs;
+          rewardTitle = `+${bonusCoins} 🪙 oraz +${bonusElixirs} 🧪`;
+          rewardSubtitle = `Nagroda z ${box.name}!`;
+          rewardIcon = '✨';
+        }
+      }
+
+      saveState();
+      updateTopBar();
+      renderLobbyTab();
+
+      // Animacja modala boxa
+      const modal = document.getElementById('boxModal');
+      const card = document.getElementById('boxModalCard');
+      const badge = document.getElementById('boxAnimBadge');
+      const iconEl = document.getElementById('boxVisualIcon');
+      const titleEl = document.getElementById('boxRewardTitle');
+      const subEl = document.getElementById('boxRewardSubtitle');
+      const closeBtn = document.getElementById('boxCloseBtn');
+
+      modal.classList.remove('hidden');
+      closeBtn.classList.add('hidden');
+
+      if (hitRoyal || box.id === 'ultra') {
+        card.classList.add('royal-box-anim');
+        badge.textContent = hitRoyal ? '★ ZŁOTO-TĘCZOWY TRAF KRÓLEWSKI ★' : 'ZŁOTO-TĘCZOWE OTWARCIE ULTRA BOXA';
+        playSound('royal');
+      } else {
+        card.classList.remove('royal-box-anim');
+        badge.textContent = `OTWARTO: ${box.name.toUpperCase()}`;
+        playSound('reward');
+      }
+
+      iconEl.textContent = '📦';
+      titleEl.textContent = 'Otwieranie...';
+      subEl.textContent = 'Trwa rozpakowywanie zawartości';
+
+      setTimeout(() => {
+        iconEl.textContent = rewardIcon;
+        titleEl.textContent = rewardTitle;
+        subEl.textContent = rewardSubtitle;
+        closeBtn.classList.remove('hidden');
+      }, hitRoyal ? 1200 : 650);
+    }
+
+    function closeBoxModal() {
+      document.getElementById('boxModal').classList.add('hidden');
+      document.getElementById('boxModalCard').classList.remove('royal-box-anim');
+    }
+
+    // =========================================================================
+    // 7. MECHANIKA MECZU 3D: ODLICZANIE 3, 2, 1, START!, 3 MINUTY, 10 MOPSÓW
+    // =========================================================================
+    const MATCH_DURATION_SEC = 180; // 3 minuty
+    let gamePhase = 'lobby'; // 'lobby' | 'countdown' | 'playing' | 'ended'
+    let matchTimeLeft = MATCH_DURATION_SEC;
+    let countdownTimer = 0;
+    let lastCountdownStep = '';
+
+    let fighters = []; // 10 zawodników: indeks 0 to gracz, 1..9 to boty
+    let projectiles = [];
+    let cameraYaw = 0;
+    let cameraPitch = 0.24;
+
+    // Stan sterowania gracza
+    const keysPressed = {};
+    let joyMoveX = 0;
+    let joyMoveZ = 0;
+    let touchSprintActive = false;
+    let touchShootActive = false;
+    let pointerLockActive = false;
+
+    function getPlayerMaxHp() {
+      const wpn = WEAPONS_DATA.find(w => w.id === playerState.equippedWeapon) || WEAPONS_DATA[0];
+      const wLvl = playerState.weaponLevels[wpn.id] || 1;
+      return 200 + wLvl * 4;
+    }
+
+    function spawnFighterAtSafeSpot(fighter, shieldDuration) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 14 + Math.random() * 28;
+      fighter.pos.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+      resolveArenaCollisions(fighter.pos, 0.9);
+      fighter.velY = 0;
+      fighter.onGround = true;
+      fighter.alive = true;
+      fighter.hp = fighter.maxHp;
+      fighter.respawnTimer = 0;
+      fighter.shieldTimer = shieldDuration;
+      fighter.regenDelayTimer = 0;
+      fighter.mesh.visible = true;
+      fighter.mesh.position.copy(fighter.pos);
+    }
+
+    function createFightersForMatch() {
+      // Usuń poprzednie modele zawodników
+      fighters.forEach(f => {
+        if (f.mesh && arenaGroup) arenaGroup.remove(f.mesh);
+      });
+      fighters = [];
+
+      // Usuń stare pociski
+      projectiles.forEach(p => {
+        if (p.mesh && arenaGroup) arenaGroup.remove(p.mesh);
+      });
+      projectiles = [];
+
+      const pSkin = SKINS_DATA.find(s => s.id === playerState.equippedSkin) || SKINS_DATA[0];
+      const pWpn = WEAPONS_DATA.find(w => w.id === playerState.equippedWeapon) || WEAPONS_DATA[0];
+      const pWSkinId = playerState.equippedWeaponSkins[pWpn.id];
+      const pWSkin = pWpn.skins ? pWpn.skins.find(s => s.id === pWSkinId) : null;
+      const pLvl = playerState.weaponLevels[pWpn.id] || 1;
+      const pMaxHp = getPlayerMaxHp();
+
+      const playerMesh = buildMopsCharacter(pSkin, pWpn, pWSkin, 1.0);
+      arenaGroup.add(playerMesh);
+
+      const playerFighter = {
+        id: 'player',
+        name: pSkin.name,
+        isBot: false,
+        mesh: playerMesh,
+        pos: new THREE.Vector3(0, 0, 20),
+        velY: 0,
+        onGround: true,
+        yaw: 0,
+        hp: pMaxHp,
+        maxHp: pMaxHp,
+        sprint: 100,
+        alive: true,
+        shieldTimer: 3.0, // 3s tarczy ochronnej na start meczu
+        respawnTimer: 0,
+        fireCooldown: 0,
+        dmg: pWpn.baseDmg + (pLvl - 1) * 4,
+        fireInterval: pWpn.fireInterval,
+        bulletColor: (pWSkin && pWSkin.color) || pWpn.color || '#38bdf8',
+        regenDelayTimer: 0,
+        kills: 0,
+        score: 0,
+        // Pola AI używane przez boty
+        targetId: null,
+        aiChangeTargetTimer: 0,
+        aiStrafeDir: 1,
+        aiStrafeTimer: 1.0
+      };
+      fighters.push(playerFighter);
+
+      // 9 botów z różnymi skinami i broniami (bez przedmiotów wyłącznie z MOPS PASS)
+      const botSkinsPool = SKINS_DATA.filter(s => s.id !== playerState.equippedSkin && s.rarity !== 'karnetowy');
+      const botWeaponsPool = WEAPONS_DATA.filter(w => w.rarity !== 'Karnetowy');
+      const botNames = [
+        'NeoMops', 'CyberGutuś', 'Piksel', 'ZłotyKłak', 'Błysk',
+        'RaptorPug', 'Kwant', 'ViperMops', 'TurboŁapa'
+      ];
+
+      for (let i = 0; i < 9; i++) {
+        const bSkin = botSkinsPool[i % Math.max(1, botSkinsPool.length)] || SKINS_DATA[0];
+        const bWpn = botWeaponsPool[i % Math.max(1, botWeaponsPool.length)] || WEAPONS_DATA[0];
+        const bMesh = buildMopsCharacter(bSkin, bWpn, null, 1.0);
+        arenaGroup.add(bMesh);
+
+        const bMaxHp = 180 + (i % 3) * 15;
+        fighters.push({
+          id: `bot_${i + 1}`,
+          name: botNames[i] || `Bot ${i + 1}`,
+          isBot: true,
+          mesh: bMesh,
+          pos: new THREE.Vector3(0, 0, 0),
+          velY: 0,
+          onGround: true,
+          yaw: Math.random() * Math.PI * 2,
+          hp: bMaxHp,
+          maxHp: bMaxHp,
+          sprint: 100,
+          alive: true,
+          shieldTimer: 3.0, // 3s tarczy ochronnej na start meczu dla wszystkich 10 mopsów
+          respawnTimer: 0,
+          fireCooldown: 0.4 + Math.random() * 0.6,
+          dmg: Math.max(14, Math.round(bWpn.baseDmg * 0.65)),
+          fireInterval: Math.max(0.32, bWpn.fireInterval * 1.65),
+          bulletColor: bWpn.color || '#f472b6',
+          regenDelayTimer: 0,
+          kills: 0,
+          score: 0,
+          targetId: null,
+          aiChangeTargetTimer: 1.0 + Math.random() * 2.0,
+          aiStrafeDir: Math.random() < 0.5 ? -1 : 1,
+          aiStrafeTimer: 0.8 + Math.random() * 1.4
+        });
+      }
+
+      // Rozmieść wszystkich 10 mopsów na arenie z 3.0s ochroną
+      fighters.forEach((f, idx) => {
+        const ang = (idx / fighters.length) * Math.PI * 2;
+        const rad = 26;
+        f.pos.set(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
+        resolveArenaCollisions(f.pos, 0.9);
+        f.shieldTimer = 3.0;
+        f.mesh.position.copy(f.pos);
+        if (f.mesh.userData && f.mesh.userData.shieldMesh) {
+          f.mesh.userData.shieldMesh.visible = true;
+        }
+      });
+
+      cameraYaw = 0;
+      cameraPitch = 0.24;
+    }
+
+    function startMatchCountdown() {
+      ensureAudio();
+      playSound('click');
+      document.getElementById('resultsModal').classList.add('hidden');
+      document.getElementById('lobbyScreen').classList.add('hidden');
+      document.getElementById('hudScreen').classList.remove('hidden');
+
+      setSceneMode('arena');
+      createFightersForMatch();
+
+      matchTimeLeft = MATCH_DURATION_SEC;
+      countdownTimer = 3.6; // 3 -> 2 -> 1 -> START!
+      lastCountdownStep = '';
+      gamePhase = 'countdown';
+
+      const overlay = document.getElementById('countdownOverlay');
+      overlay.classList.remove('hidden');
+      updateHud();
+    }
+
+    function abortMatchToLobby() {
+      if (document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch (_) {}
+      }
+      touchShootActive = false;
+      touchSprintActive = false;
+      joyMoveX = 0;
+      joyMoveZ = 0;
+
+      gamePhase = 'lobby';
+      document.getElementById('countdownOverlay').classList.add('hidden');
+      document.getElementById('hudScreen').classList.add('hidden');
+      document.getElementById('resultsModal').classList.add('hidden');
+      document.getElementById('lobbyScreen').classList.remove('hidden');
+
+      setSceneMode('lobby');
+      updateLobbyMopsModel();
+      updateTopBar();
+    }
+
+    // Wystrzał pocisku przez gracza lub bota (z naturalnym rozrzutem, bez aimbota)
+    function fireWeaponFromFighter(shooter, aimDirOverride = null) {
+      if (!shooter.alive || shooter.fireCooldown > 0) return;
+      shooter.fireCooldown = shooter.fireInterval;
+
+      const startPos = new THREE.Vector3(shooter.pos.x, shooter.pos.y + 1.35, shooter.pos.z);
+      let dir = new THREE.Vector3();
+
+      if (aimDirOverride) {
+        dir.copy(aimDirOverride).normalize();
+      } else {
+        // Kierunek zgodny z orientacją zawodnika
+        dir.set(Math.sin(shooter.yaw), 0.03, Math.cos(shooter.yaw)).normalize();
+      }
+
+      // Naturalny rozrzut strzału
+      const spread = shooter.isBot ? 0.095 : 0.022;
+      dir.x += (Math.random() - 0.5) * spread;
+      dir.y += (Math.random() - 0.5) * spread * 0.6;
+      dir.z += (Math.random() - 0.5) * spread;
+      dir.normalize();
+
+      startPos.addScaledVector(dir, 1.15);
+
+      const bulletMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 8, 8),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(shooter.bulletColor || '#38bdf8') })
+      );
+      bulletMesh.position.copy(startPos);
+      arenaGroup.add(bulletMesh);
+
+      projectiles.push({
+        ownerId: shooter.id,
+        pos: startPos,
+        vel: dir.multiplyScalar(shooter.isBot ? 44 : 62),
+        dmg: shooter.dmg,
+        life: 1.35,
+        mesh: bulletMesh
+      });
+
+      if (!shooter.isBot) {
+        playSound('shoot');
+        const ch = document.getElementById('crosshair');
+        if (ch) {
+          ch.style.transform = 'translate(-50%, -50%) scale(1.22)';
+          setTimeout(() => {
+            ch.style.transform = 'translate(-50%, -50%) scale(1)';
+          }, 70);
+        }
+      }
+    }
+
+    function applyDamageToFighter(victim, attacker, amount) {
+      if (!victim || !victim.alive || victim.shieldTimer > 0) return;
+      victim.hp = Math.max(0, victim.hp - amount);
+      victim.regenDelayTimer = 4.0; // Regeneracja zdrowia rusza po 4s bez trafień
+
+      if (attacker && !attacker.isBot && victim.id !== attacker.id) {
+        attacker.score += amount;
+        playSound('hit');
+      }
+
+      if (victim.hp <= 0) {
+        victim.alive = false;
+        victim.respawnTimer = 2.0; // Odrodzenie po 2s z 5.0s tarczą ochronną
+        victim.mesh.visible = false;
+
+        if (attacker && attacker.id !== victim.id) {
+          attacker.kills += 1;
+          attacker.score += 120;
+          if (!attacker.isBot) {
+            playSound('ko');
+            showToast(`Wyeliminowano: ${victim.name}!`);
+          }
+        }
+      }
+    }
+
+    function updateFighterVisuals(f, moveSpeed, dt) {
+      f.mesh.position.copy(f.pos);
+      f.mesh.rotation.y = f.yaw;
+
+      // Animacja łapek mopsa
+      const legs = f.mesh.userData && f.mesh.userData.legs;
+      if (legs && legs.length === 4) {
+        if (moveSpeed > 0.4 && f.onGround) {
+          const swing = Math.sin(performance.now() * 0.018) * 0.45;
+          legs[0].rotation.x = swing;
+          legs[3].rotation.x = swing;
+          legs[1].rotation.x = -swing;
+          legs[2].rotation.x = -swing;
+        } else {
+          legs.forEach(l => { l.rotation.x = 0; });
+        }
+      }
+
+      // Widoczność tarczy ochronnej
+      if (f.mesh.userData && f.mesh.userData.shieldMesh) {
+        const sMesh = f.mesh.userData.shieldMesh;
+        sMesh.visible = f.alive && f.shieldTimer > 0;
+        if (sMesh.visible) {
+          sMesh.rotation.y += dt * 2.5;
+        }
+      }
+    }
+
+    function updatePlayerFighter(player, dt) {
+      if (player.fireCooldown > 0) player.fireCooldown = Math.max(0, player.fireCooldown - dt);
+
+      if (!player.alive) {
+        player.respawnTimer -= dt;
+        if (player.respawnTimer <= 0) {
+          // Odrodzenie po 2s z 5.0s tarczą ochronną
+          spawnFighterAtSafeSpot(player, 5.0);
+          showToast('Odrodzono! Tarcza ochronna: 5.0s');
+        }
+        return;
+      }
+
+      if (player.shieldTimer > 0) {
+        player.shieldTimer = Math.max(0, player.shieldTimer - dt);
+      }
+
+      // Regeneracja zdrowia po 4s bez otrzymywania trafień
+      if (player.regenDelayTimer > 0) {
+        player.regenDelayTimer = Math.max(0, player.regenDelayTimer - dt);
+      } else if (player.hp < player.maxHp) {
+        player.hp = Math.min(player.maxHp, player.hp + 14 * dt);
+      }
+
+      // Obrót kamery klawiszami Q/E oraz ←/→
+      const rotSpeed = 2.2;
+      if (keysPressed['KeyQ'] || keysPressed['ArrowLeft']) cameraYaw += rotSpeed * dt;
+      if (keysPressed['KeyE'] || keysPressed['ArrowRight']) cameraYaw -= rotSpeed * dt;
+      player.yaw = cameraYaw;
+
+      // Kierunek ruchu na podstawie joysticka oraz WASD/strzałek
+      let inputX = joyMoveX;
+      let inputZ = joyMoveZ;
+      if (keysPressed['KeyA']) inputX -= 1;
+      if (keysPressed['KeyD']) inputX += 1;
+      if (keysPressed['KeyW'] || keysPressed['ArrowUp']) inputZ += 1;
+      if (keysPressed['KeyS'] || keysPressed['ArrowDown']) inputZ -= 1;
+
+      const len = Math.hypot(inputX, inputZ);
+      if (len > 1) {
+        inputX /= len;
+        inputZ /= len;
+      }
+
+      const wantsSprint = (keysPressed['ShiftLeft'] || keysPressed['ShiftRight'] || touchSprintActive) && len > 0.1 && player.sprint > 2;
+      let moveSpeed = 10.5;
+      if (wantsSprint) {
+        moveSpeed = 16.5;
+        player.sprint = Math.max(0, player.sprint - 28 * dt);
+      } else {
+        player.sprint = Math.min(100, player.sprint + 20 * dt);
+      }
+
+      const forward = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+      const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
+      const moveVec = new THREE.Vector3()
+        .addScaledVector(forward, inputZ)
+        .addScaledVector(right, inputX);
+
+      if (moveVec.lengthSq() > 0.0001) {
+        moveVec.normalize();
+        player.pos.x += moveVec.x * moveSpeed * dt;
+        player.pos.z += moveVec.z * moveSpeed * dt;
+      }
+
+      // Skok (Spacja lub przycisk SKOK)
+      if (keysPressed['Space'] && player.onGround) {
+        player.velY = 11.5;
+        player.onGround = false;
+        playSound('jump');
+      }
+
+      player.velY -= 28 * dt;
+      player.pos.y += player.velY * dt;
+      if (player.pos.y <= 0) {
+        player.pos.y = 0;
+        player.velY = 0;
+        player.onGround = true;
+      }
+
+      resolveArenaCollisions(player.pos, 0.85);
+      updateFighterVisuals(player, moveSpeed * len, dt);
+
+      // Ręczne celowanie dokładnie tam, gdzie patrzy kamera (bez aimbota)
+      if (touchShootActive || keysPressed['MouseShoot']) {
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        fireWeaponFromFighter(player, camDir);
+      }
+
+      // Pozycja kamery trzecioosobowej za plecami mopsa
+      const distBack = 6.4;
+      const heightOffset = 3.1 + Math.sin(cameraPitch) * 2.2;
+      const desiredCamPos = new THREE.Vector3(
+        player.pos.x - Math.sin(cameraYaw) * distBack,
+        player.pos.y + heightOffset,
+        player.pos.z - Math.cos(cameraYaw) * distBack
+      );
+      desiredCamPos.x = Math.max(-ARENA_HALF + 1.5, Math.min(ARENA_HALF - 1.5, desiredCamPos.x));
+      desiredCamPos.z = Math.max(-ARENA_HALF + 1.5, Math.min(ARENA_HALF - 1.5, desiredCamPos.z));
+      desiredCamPos.y = Math.max(1.4, desiredCamPos.y);
+
+      camera.position.lerp(desiredCamPos, Math.min(1, 14 * dt));
+      const lookTarget = new THREE.Vector3(
+        player.pos.x + Math.sin(cameraYaw) * 5.0,
+        player.pos.y + 1.9 - Math.sin(cameraPitch) * 2.5,
+        player.pos.z + Math.cos(cameraYaw) * 5.0
+      );
+      camera.lookAt(lookTarget);
+    }
+
+    function updateBotFighter(bot, dt) {
+      if (bot.fireCooldown > 0) bot.fireCooldown = Math.max(0, bot.fireCooldown - dt);
+
+      if (!bot.alive) {
+        bot.respawnTimer -= dt;
+        if (bot.respawnTimer <= 0) {
+          spawnFighterAtSafeSpot(bot, 5.0);
+        }
+        return;
+      }
+
+      if (bot.shieldTimer > 0) {
+        bot.shieldTimer = Math.max(0, bot.shieldTimer - dt);
+      }
+
+      if (bot.regenDelayTimer > 0) {
+        bot.regenDelayTimer = Math.max(0, bot.regenDelayTimer - dt);
+      } else if (bot.hp < bot.maxHp) {
+        bot.hp = Math.min(bot.maxHp, bot.hp + 9 * dt);
+      }
+
+      // Wybór różnorodnych celów (boty rotują cele, aby nie skupiać się na jednym przeciwniku)
+      bot.aiChangeTargetTimer -= dt;
+      let target = fighters.find(f => f.id === bot.targetId && f.alive && f.id !== bot.id);
+      if (!target || bot.aiChangeTargetTimer <= 0) {
+        const candidates = fighters.filter(f => f.alive && f.id !== bot.id);
+        if (candidates.length > 0) {
+          target = candidates[Math.floor(Math.random() * candidates.length)];
+          bot.targetId = target.id;
+        }
+        bot.aiChangeTargetTimer = 2.0 + Math.random() * 2.5;
+      }
+
+      bot.aiStrafeTimer -= dt;
+      if (bot.aiStrafeTimer <= 0) {
+        bot.aiStrafeDir *= -1;
+        bot.aiStrafeTimer = 0.9 + Math.random() * 1.4;
+      }
+
+      let moveSpeed = 8.2;
+      if (target) {
+        const toTargetX = target.pos.x - bot.pos.x;
+        const toTargetZ = target.pos.z - bot.pos.z;
+        const dist = Math.hypot(toTargetX, toTargetZ) || 0.001;
+        const desiredYaw = Math.atan2(toTargetX, toTargetZ);
+        bot.yaw = desiredYaw;
+
+        const dirX = toTargetX / dist;
+        const dirZ = toTargetZ / dist;
+        const perpX = -dirZ * bot.aiStrafeDir;
+        const perpZ = dirX * bot.aiStrafeDir;
+
+        const approach = dist > 18 ? 0.75 : (dist < 7 ? -0.45 : 0.15);
+        bot.pos.x += (dirX * approach + perpX * 0.75) * moveSpeed * dt;
+        bot.pos.z += (dirZ * approach + perpZ * 0.75) * moveSpeed * dt;
+
+        // Okresowy unikowy skok bota
+        if (bot.onGround && Math.random() < 0.008) {
+          bot.velY = 10.5;
+          bot.onGround = false;
+        }
+
+        // Strzał w stronę celu z naturalnym rozrzutem
+        if (dist < 36 && bot.fireCooldown <= 0) {
+          const aimDir = new THREE.Vector3(
+            toTargetX / dist,
+            ((target.pos.y + 1.25) - (bot.pos.y + 1.35)) / dist,
+            toTargetZ / dist
+          ).normalize();
+          fireWeaponFromFighter(bot, aimDir);
+        }
+      } else {
+        bot.yaw += 1.2 * dt;
+        bot.pos.x += Math.sin(bot.yaw) * moveSpeed * 0.6 * dt;
+        bot.pos.z += Math.cos(bot.yaw) * moveSpeed * 0.6 * dt;
+      }
+
+      bot.velY -= 28 * dt;
+      bot.pos.y += bot.velY * dt;
+      if (bot.pos.y <= 0) {
+        bot.pos.y = 0;
+        bot.velY = 0;
+        bot.onGround = true;
+      }
+
+      resolveArenaCollisions(bot.pos, 0.85);
+      updateFighterVisuals(bot, moveSpeed, dt);
+    }
+
+    function updateProjectiles(dt) {
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.life -= dt;
+        p.pos.addScaledVector(p.vel, dt);
+        p.mesh.position.copy(p.pos);
+
+        let hitWall = Math.abs(p.pos.x) > ARENA_HALF || Math.abs(p.pos.z) > ARENA_HALF || p.pos.y < 0;
+        if (!hitWall) {
+          for (const b of coverBoxes) {
+            if (p.pos.y <= b.height && p.pos.x >= b.minX && p.pos.x <= b.maxX && p.pos.z >= b.minZ && p.pos.z <= b.maxZ) {
+              hitWall = true;
+              break;
+            }
+          }
+        }
+
+        let hitFighter = null;
+        if (!hitWall) {
+          for (const f of fighters) {
+            if (!f.alive || f.id === p.ownerId) continue;
+            const dx = p.pos.x - f.pos.x;
+            const dz = p.pos.z - f.pos.z;
+            const dy = p.pos.y - (f.pos.y + 1.25);
+            if (Math.hypot(dx, dz) < 1.05 && Math.abs(dy) < 1.35) {
+              hitFighter = f;
+              break;
+            }
+          }
+        }
+
+        if (hitFighter) {
+          const attacker = fighters.find(f => f.id === p.ownerId);
+          applyDamageToFighter(hitFighter, attacker, p.dmg);
+        }
+
+        if (p.life <= 0 || hitWall || hitFighter) {
+          arenaGroup.remove(p.mesh);
+          projectiles.splice(i, 1);
+        }
+      }
+    }
+
+    function getSortedStandings() {
+      return [...fighters].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.kills - a.kills;
+      });
+    }
+
+    function updateHud() {
+      const player = fighters[0];
+      if (!player) return;
+
+      const hpPct = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
+      document.getElementById('hudHpText').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+      document.getElementById('hudHpBar').style.width = `${hpPct}%`;
+
+      document.getElementById('hudSprintText').textContent = `${Math.round(player.sprint)}%`;
+      document.getElementById('hudSprintBar').style.width = `${Math.max(0, Math.min(100, player.sprint))}%`;
+
+      const shieldBadge = document.getElementById('hudShieldBadge');
+      const respawnBadge = document.getElementById('hudRespawnBadge');
+
+      if (!player.alive) {
+        shieldBadge.classList.add('hidden');
+        respawnBadge.classList.remove('hidden');
+        document.getElementById('hudRespawnTimer').textContent = Math.max(0.1, player.respawnTimer).toFixed(1);
+      } else {
+        respawnBadge.classList.add('hidden');
+        if (player.shieldTimer > 0) {
+          shieldBadge.classList.remove('hidden');
+          document.getElementById('hudShieldTimer').textContent = player.shieldTimer.toFixed(1);
+        } else {
+          shieldBadge.classList.add('hidden');
+        }
+      }
+
+      const secs = Math.max(0, Math.ceil(matchTimeLeft));
+      const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+      const ss = String(secs % 60).padStart(2, '0');
+      document.getElementById('hudTimer').textContent = `${mm}:${ss}`;
+
+      const standings = getSortedStandings();
+      const place = standings.findIndex(item => item.id === 'player') + 1;
+      document.getElementById('hudRank').textContent = String(place);
+      document.getElementById('hudKills').textContent = String(player.kills);
+
+      const lbEl = document.getElementById('hudLeaderboard');
+      if (lbEl) {
+        lbEl.innerHTML = standings.slice(0, 5).map((item, idx) => {
+          const isMe = item.id === 'player';
+          return `
+            <div class="flex items-center justify-between px-1.5 py-0.5 rounded-lg ${isMe ? 'bg-cyan-500/25 text-cyan-200 font-bold' : 'text-slate-300'}">
+              <span class="truncate">${idx + 1}. ${item.name}</span>
+              <span class="text-amber-300 font-bold ml-1">${item.kills} KO</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Nagrody za miejsca od 1 do 10 po zakończeniu 3-minutowego meczu
+    function getPlacementReward(place) {
+      switch (place) {
+        case 1:  return { trophies: 40,  coins: 10, passDelta: 1,  resetStreak: false };
+        case 2:  return { trophies: 28,  coins: 7,  passDelta: 1,  resetStreak: false };
+        case 3:  return { trophies: 20,  coins: 5,  passDelta: 1,  resetStreak: false };
+        case 4:  return { trophies: 14,  coins: 4,  passDelta: 1,  resetStreak: false };
+        case 5:  return { trophies: 8,   coins: 3,  passDelta: 0,  resetStreak: false };
+        case 6:  return { trophies: 4,   coins: 2,  passDelta: 0,  resetStreak: true  };
+        case 7:  return { trophies: 2,   coins: 2,  passDelta: 0,  resetStreak: true  };
+        case 8:  return { trophies: 0,   coins: 1,  passDelta: 0,  resetStreak: true  };
+        case 9:  return { trophies: -4,  coins: 1,  passDelta: 0,  resetStreak: true  };
+        case 10:
+        default: return { trophies: -8,  coins: 1,  passDelta: 0,  resetStreak: true  };
+      }
+    }
+
+    function finishMatch() {
+      if (gamePhase === 'ended') return;
+      gamePhase = 'ended';
+
+      if (document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch (_) {}
+      }
+      touchShootActive = false;
+      touchSprintActive = false;
+
+      const standings = getSortedStandings();
+      const playerFighter = fighters[0];
+      const place = standings.findIndex(item => item.id === 'player') + 1;
+      const reward = getPlacementReward(place);
+
+      // Aktualizacja pucharów (minimum 0), monet, punktów passy (1 poziom = 50 pkt) i zwycięskiej passy
+      playerState.trophies = Math.max(0, playerState.trophies + reward.trophies);
+      playerState.coins += reward.coins;
+      if (reward.passDelta > 0) {
+        playerState.passPoints += reward.passDelta * 50;
+      }
+      if (reward.resetStreak) {
+        playerState.streak = 0;
+      } else if (place <= 4) {
+        playerState.streak += 1;
+      }
+
+      // Statystyki do misji
+      playerState.stats.matches = (playerState.stats.matches || 0) + 1;
+      playerState.stats.kills = (playerState.stats.kills || 0) + (playerFighter ? playerFighter.kills : 0);
+      if (place <= 3) {
+        playerState.stats.top3 = (playerState.stats.top3 || 0) + 1;
+      }
+
+      saveState();
+      playSound('reward');
+      updateTopBar();
+
+      document.getElementById('hudScreen').classList.add('hidden');
+      const modal = document.getElementById('resultsModal');
+      modal.classList.remove('hidden');
+
+      document.getElementById('resultsPlayerPlaceBadge').textContent = `#${place} MIEJSCE`;
+      const trophySign = reward.trophies > 0 ? `+${reward.trophies}` : `${reward.trophies}`;
+      document.getElementById('resultsRewardSummary').textContent =
+        `Puchary: ${trophySign} 🏆 • Monety: +${reward.coins} 🪙 • Passa: ${reward.passDelta > 0 ? `+${reward.passDelta} poz.` : 'bez zmiany'} • Seria: ${playerState.streak} 🔥`;
+
+      const listEl = document.getElementById('resultsStandingsList');
+      listEl.innerHTML = standings.map((entry, idx) => {
+        const rankNum = idx + 1;
+        const r = getPlacementReward(rankNum);
+        const isMe = entry.id === 'player';
+        const tLabel = r.trophies > 0 ? `+${r.trophies} 🏆` : `${r.trophies} 🏆`;
+        return `
+          <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl border ${isMe ? 'bg-cyan-500/20 border-cyan-400 text-white' : 'bg-slate-800/75 border-slate-700/70 text-slate-200'}">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="font-cyber font-black text-sm w-6 text-center ${rankNum <= 3 ? 'text-amber-300' : 'text-slate-400'}">${rankNum}.</span>
+              <span class="font-bold text-xs sm:text-sm truncate">${entry.name} ${isMe ? '(Ty)' : ''}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs shrink-0">
+              <span class="text-fuchsia-300 font-bold">${entry.kills} KO</span>
+              <span class="text-slate-400 hidden sm:inline">${entry.score} pkt</span>
+              <span class="font-bold ${r.trophies >= 0 ? 'text-emerald-300' : 'text-rose-400'}">${tLabel}</span>
+              <span class="text-amber-300 font-bold">+${r.coins} 🪙</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function returnToLobbyFromResults() {
+      abortMatchToLobby();
+      renderLobbyTab();
+    }
+
+    function playAgainFromResults() {
+      startMatchCountdown();
+    }
+
+    // =========================================================================
+    // 8. STEROWANIE: WIRTUALNY JOYSTICK, PRZYCISKI DOTYKOWE, KLAWIATURA I MYSZ
+    // =========================================================================
+    function setupControls() {
+      // Klawiatura
+      window.addEventListener('keydown', e => {
+        keysPressed[e.code] = true;
+      });
+      window.addEventListener('keyup', e => {
+        keysPressed[e.code] = false;
+      });
+
+      // Przyciski dotykowe / myszowe STRZAŁ, SKOK i SPRINT
+      const btnShoot = document.getElementById('btnShoot');
+      const btnJump = document.getElementById('btnJump');
+      const btnSprint = document.getElementById('btnSprint');
+
+      const bindHold = (el, onStart, onEnd) => {
+        if (!el) return;
+        el.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          ensureAudio();
+          onStart();
+        });
+        const stopFn = e => {
+          e.preventDefault();
+          onEnd();
+        };
+        el.addEventListener('pointerup', stopFn);
+        el.addEventListener('pointercancel', stopFn);
+        el.addEventListener('pointerleave', stopFn);
+      };
+
+      bindHold(btnShoot, () => { touchShootActive = true; }, () => { touchShootActive = false; });
+      bindHold(btnSprint, () => { touchSprintActive = true; }, () => { touchSprintActive = false; });
+      bindHold(btnJump, () => {
+        const player = fighters[0];
+        if (gamePhase === 'playing' && player && player.alive && player.onGround) {
+          player.velY = 11.5;
+          player.onGround = false;
+          playSound('jump');
+        }
+      }, () => {});
+
+      // Wirtualny joystick po lewej stronie ekranu
+      const joyZone = document.getElementById('joystickZone');
+      const joyThumb = document.getElementById('joystickThumb');
+      let joyPointerId = null;
+
+      const updateJoystickThumb = (clientX, clientY) => {
+        const rect = joyZone.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const maxR = rect.width * 0.36;
+        let dx = clientX - cx;
+        let dy = clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist > maxR) {
+          dx = (dx / dist) * maxR;
+          dy = (dy / dist) * maxR;
+        }
+        joyThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+        joyMoveX = dx / maxR;
+        joyMoveZ = -(dy / maxR);
+      };
+
+      const resetJoystick = () => {
+        joyPointerId = null;
+        joyMoveX = 0;
+        joyMoveZ = 0;
+        joyThumb.style.transform = 'translate(0px, 0px)';
+      };
+
+      joyZone.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        joyPointerId = e.pointerId;
+        joyZone.setPointerCapture(e.pointerId);
+        updateJoystickThumb(e.clientX, e.clientY);
+      });
+      joyZone.addEventListener('pointermove', e => {
+        if (e.pointerId !== joyPointerId) return;
+        e.preventDefault();
+        updateJoystickThumb(e.clientX, e.clientY);
+      });
+      joyZone.addEventListener('pointerup', e => {
+        if (e.pointerId === joyPointerId) resetJoystick();
+      });
+      joyZone.addEventListener('pointercancel', e => {
+        if (e.pointerId === joyPointerId) resetJoystick();
+      });
+
+      // Obrót kamery na ekranie dotykowym (strefa po prawej/środku)
+      const camZone = document.getElementById('cameraTouchZone');
+      let camTouchId = null;
+      let lastCamX = 0;
+      let lastCamY = 0;
+
+      camZone.addEventListener('pointerdown', e => {
+        if (gamePhase !== 'playing') return;
+        e.preventDefault();
+        camTouchId = e.pointerId;
+        lastCamX = e.clientX;
+        lastCamY = e.clientY;
+      });
+      camZone.addEventListener('pointermove', e => {
+        if (e.pointerId !== camTouchId || gamePhase !== 'playing') return;
+        const dx = e.clientX - lastCamX;
+        const dy = e.clientY - lastCamY;
+        lastCamX = e.clientX;
+        lastCamY = e.clientY;
+        cameraYaw -= dx * 0.0065;
+        cameraPitch = Math.max(-0.25, Math.min(0.65, cameraPitch + dy * 0.0045));
+      });
+      const endCamTouch = e => {
+        if (e.pointerId === camTouchId) camTouchId = null;
+      };
+      camZone.addEventListener('pointerup', endCamTouch);
+      camZone.addEventListener('pointercancel', endCamTouch);
+
+      // Obrót mopsa 360° w lobby (myszą lub palcem) oraz strzelanie/obrót myszą na komputerze
+      let lobbyDragActive = false;
+      let lobbyLastX = 0;
+
+      renderer.domElement.addEventListener('pointerdown', e => {
+        ensureAudio();
+        if (gamePhase === 'lobby') {
+          lobbyDragActive = true;
+          lobbyLastX = e.clientX;
+        } else if (gamePhase === 'playing' && e.pointerType === 'mouse') {
+          if (e.button === 0) {
+            keysPressed['MouseShoot'] = true;
+          }
+          lobbyDragActive = true;
+          lobbyLastX = e.clientX;
+          lastCamY = e.clientY;
+        }
+      });
+
+      window.addEventListener('pointermove', e => {
+        if (!lobbyDragActive) return;
+        const dx = e.clientX - lobbyLastX;
+        const dy = e.clientY - lastCamY;
+        lobbyLastX = e.clientX;
+        lastCamY = e.clientY;
+
+        if (gamePhase === 'lobby') {
+          lobbyRotationY += dx * 0.012;
+          if (lobbyMopsMesh) {
+            lobbyMopsMesh.rotation.y = lobbyRotationY;
+          }
+        } else if (gamePhase === 'playing' && e.pointerType === 'mouse') {
+          cameraYaw -= dx * 0.0055;
+          cameraPitch = Math.max(-0.25, Math.min(0.65, cameraPitch + dy * 0.004));
+        }
+      });
+
+      window.addEventListener('pointerup', e => {
+        if (e.button === 0) {
+          keysPressed['MouseShoot'] = false;
+        }
+        lobbyDragActive = false;
+      });
+    }
+
+    // =========================================================================
+    // 9. PĘTLA ANIMACJI I INICJALIZACJA APLIKACJI
+    // =========================================================================
+    let lastFrameTime = performance.now();
+
+    function animateLoop(now) {
+      requestAnimationFrame(animateLoop);
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+      lastFrameTime = now;
+
+      if (gamePhase === 'lobby') {
+        if (lobbyPlatformRing) {
+          lobbyPlatformRing.rotation.z += dt * 0.7;
+        }
+        if (lobbyMopsMesh && !document.pointerButtons) {
+          lobbyMopsMesh.rotation.y = lobbyRotationY + Math.sin(now * 0.0015) * 0.05;
+        }
+      } else if (gamePhase === 'countdown') {
+        countdownTimer -= dt;
+        const cdOverlay = document.getElementById('countdownOverlay');
+        const cdText = document.getElementById('countdownText');
+        let stepLabel = '3';
+        if (countdownTimer > 2.4) stepLabel = '3';
+        else if (countdownTimer > 1.5) stepLabel = '2';
+        else if (countdownTimer > 0.6) stepLabel = '1';
+        else if (countdownTimer > 0) stepLabel = 'START!';
+        else {
+          cdOverlay.classList.add('hidden');
+          gamePhase = 'playing';
+          stepLabel = '';
+        }
+
+        if (stepLabel && stepLabel !== lastCountdownStep) {
+          lastCountdownStep = stepLabel;
+          cdText.textContent = stepLabel;
+          cdText.classList.remove('pop-in');
+          void cdText.offsetWidth;
+          cdText.classList.add('pop-in');
+          playSound(stepLabel === 'START!' ? 'reward' : 'click');
+        }
+
+        if (fighters[0]) {
+          const p = fighters[0];
+          camera.position.set(p.pos.x - Math.sin(cameraYaw) * 6.4, p.pos.y + 3.2, p.pos.z - Math.cos(cameraYaw) * 6.4);
+          camera.lookAt(p.pos.x, p.pos.y + 1.6, p.pos.z);
+        }
+        updateHud();
+      } else if (gamePhase === 'playing') {
+        matchTimeLeft -= dt;
+        fighters.forEach(f => {
+          if (!f.isBot) updatePlayerFighter(f, dt);
+          else updateBotFighter(f, dt);
+        });
+        updateProjectiles(dt);
+        updateHud();
+
+        if (matchTimeLeft <= 0) {
+          finishMatch();
+        }
+      }
+
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initThreeScene();
+      setupControls();
+      updateTopBar();
+      setLobbyTab('collection');
+      requestAnimationFrame(animateLoop);
+    });
+  </script>
+</body>
+</html>
